@@ -47,9 +47,27 @@ local Products = {
 			boost = "TipPotion",
 			boostSeconds = 15 * 60,
 		},
-		CoinsSmall = { id = 0, displayName = "Pile of Coins", description = "", priceRobux = 25, coins = 500 },
-		CoinsMedium = { id = 0, displayName = "Bag of Coins", description = "", priceRobux = 99, coins = 2500 },
-		CoinsLarge = { id = 0, displayName = "Vault of Coins", description = "", priceRobux = 399, coins = 11000 },
+		CoinsSmall = {
+			id = 0,
+			displayName = "Pile of Coins",
+			description = "500 coins to spend on your diner.",
+			priceRobux = 25,
+			coins = 500,
+		},
+		CoinsMedium = {
+			id = 0,
+			displayName = "Bag of Coins",
+			description = "2,500 coins to spend on your diner.",
+			priceRobux = 99,
+			coins = 2500,
+		},
+		CoinsLarge = {
+			id = 0,
+			displayName = "Vault of Coins",
+			description = "11,000 coins to spend on your diner.",
+			priceRobux = 399,
+			coins = 11000,
+		},
 		-- Free product used as the reward for an opt-in rewarded video ad.
 		AdTipBoost = {
 			id = 0,

@@ -24,9 +24,9 @@ Create each item in the Creator Hub (open the experience, then Monetization: Pas
 | `Products.InstantRestock` | Instant Restock | Collect a full 8 hours of restock earnings now. | 49 |
 | `Products.RushHourNow` | Rush Hour Now! | Start a Rush Hour for the whole server. Everyone sees your name. | 99 |
 | `Products.TipPotion` | Tip Potion | +50% tips for 15 minutes. | 39 |
-| `Products.CoinsSmall` | Pile of Coins | 500 coins to spend on your diner. *(suggested, see note)* | 25 |
-| `Products.CoinsMedium` | Bag of Coins | 2,500 coins to spend on your diner. *(suggested, see note)* | 99 |
-| `Products.CoinsLarge` | Vault of Coins | 12,000 coins to spend on your diner. *(suggested, see note)* | 399 |
+| `Products.CoinsSmall` | Pile of Coins | 500 coins to spend on your diner. | 25 |
+| `Products.CoinsMedium` | Bag of Coins | 2,500 coins to spend on your diner. | 99 |
+| `Products.CoinsLarge` | Vault of Coins | 11,000 coins to spend on your diner. | 399 |
 | `Products.AdTipBoost` | Ad Tip Boost | +25% tips for 10 minutes. | 0 |
 
 **Notes**
