@@ -100,7 +100,7 @@ Most customers just want a burger. Some want the whole diner to stop.
 
 Rare Legendary Customers tip huge and announce their arrival to every player on the server. Meet:
 - The Giant Chef
-- A Space Alien with a taste for soda
+- Zib the Stargazer, with a taste for soda
 - Sir Sandwich, the weekly guest, who changes with each weekly update
 
 Legendaries are more likely during Rush Hour, the hourly 4-minute rush with a neon countdown on your HUD.
@@ -172,7 +172,7 @@ Optional: an opt-in video ad for a temporary tip boost. Ads are never required.
 
 **Audio rules:** original voiceover (recorded by you, or generated), in-game generated sound effects, and Roblox's licensed audio library only. No copyrighted songs, no trending sounds, no memes or characters from other franchises, and no brand names.
 
-**Character rules:** The Giant Chef, Space Alien, Sir Sandwich and Chef Pip are original to this game. Use only these and the generic "Customer" characters.
+**Character rules:** The Giant Chef, Zib the Stargazer, Sir Sandwich and Chef Pip are original to this game. Use only these and the generic "Customer" characters.
 
 ---
 
@@ -192,7 +192,7 @@ Optional: an opt-in video ad for a temporary tip boost. Ads are never required.
 - **Voiceover or caption:** "Nobody tells you the Giant Chef is coming. You find out when the whole server does."
 - **CTA:** "Come see who shows up. Tap to play Rush Hour Diner."
 
-### Script 2: Space Alien orders a drink
+### Script 2: Zib the Stargazer orders a drink
 
 - **Hook (0 to 2 s):** A mint alien appears in the frame and says, in text, "I WANT A DRINK."
 - **Shot list**
@@ -202,7 +202,7 @@ Optional: an opt-in video ad for a temporary tip boost. Ads are never required.
 | 0:00 to 0:02 | Alien pops up at the counter | I WANT A DRINK |
 | 0:02 to 0:07 | Player races to the Soda Fountain, pours the drink | 4 seconds |
 | 0:07 to 0:14 | Serve, coins fly, tip bounces | Alien is happy |
-| 0:14 to 0:20 | Alien waves and beams away | Legendary Space Alien |
+| 0:14 to 0:20 | Zib waves and beams away | Legendary Zib the Stargazer |
 
 - **Voiceover or caption:** "A space alien walked in and ordered a drink. I had four seconds. I made it."
 - **CTA:** "Your turn. Tap to play."

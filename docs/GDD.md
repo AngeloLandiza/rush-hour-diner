@@ -69,7 +69,7 @@ Targets: the first upgrade comes in under 2 minutes, and all 13 levels take abou
 
 There are three legendaries at launch:
 - Giant Chef
-- Space Alien
+- Zib the Stargazer (a mint-skinned stargazer with a pink halo)
 - the **Weekly Meme slot**, driven entirely by `Config/Customers.Legendary.WeeklyMeme` and always an original character
 
 ### Rush Hour

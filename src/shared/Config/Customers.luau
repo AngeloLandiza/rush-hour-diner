@@ -774,8 +774,8 @@ local Customers = {
 		},
 		SpaceAlien = {
 			id = "SpaceAlien",
-			displayName = "Space Alien",
-			announcement = "A SPACE ALIEN landed at {owner}'s diner!",
+			displayName = "Zib the Stargazer",
+			announcement = "ZIB THE STARGAZER beamed down to {owner}'s diner!",
 			payMultiplier = 12,
 			tipBonus = 2.5,
 			patienceMultiplier = 1.5,

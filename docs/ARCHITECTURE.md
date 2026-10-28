@@ -57,7 +57,7 @@ Signatures are fixed in the stub files; changing one is a contract change (reque
 |---|---|
 | **AnalyticsService** (orch.) | `LogEvent(player, name, value?)`, `LogEconomy(player, "Source"\|"Sink", amount, balance, transactionType, sku?)`, `LogOnboarding(player, step, stepName)` |
 | **DataService** (A) | `GetData(player): PlayerData?`, `WaitForData(player, timeout?)`, `GetView(player): PlayerDataView?`, `AddCoins(player, amount, reason): number`, `SpendCoins(player, amount, reason): boolean`, `Update(player, mutator)`, `AddBoost(player, boost, seconds)`, `CollectRestock(player, full): number`, `HasReceipt(player, purchaseId)`, `RecordReceipt(player, purchaseId)`, `SaveAndConfirm(player): boolean`, `PushSync(player)` |
-| **RushHourService** (C) | `GetState(): RushHourState`, `IsActive(): boolean`, `TriggerNow(buyer?): boolean`, `GetSpawnMultiplier(): number` |
+| **RushHourService** (C) | `GetState(): RushHourState`, `IsActive(): boolean`, `IsScheduledRush(): boolean` (free hourly window only; the only flag that may affect odds), `TriggerNow(buyer?): boolean`, `GetSpawnMultiplier(): number` |
 | **PurchaseService** (A) | `OwnsPass(player, pass): boolean`, `GetPasses(player)`, `GetTipBoostPct(player): number` |
 | **LeaderboardService** (A) | `GetSnapshot(): LeaderboardSnapshot` |
 | **MapBuilder** (E) | `GetPlotModel(plotId)`, `ApplyDecor(plotId, tier)`, `SetSeatCount(plotId, n)`, `SetStationSlots(plotId, n)`, `SetSignText(plotId, filteredText)`, `SetVIPBooth(plotId, enabled)` |

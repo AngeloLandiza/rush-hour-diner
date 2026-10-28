@@ -103,6 +103,12 @@ function RushHourService.TriggerNow(buyer: Player?): boolean
 	return true
 end
 
+-- True only inside the free, scheduled hourly window. Odds-affecting bonuses (the legendary multiplier) key
+-- off this, never off a purchased "Rush Hour Now", so no Robux purchase changes random outcomes.
+function RushHourService.IsScheduledRush(): boolean
+	return state.active and Schedule.rushHourState(os.time()).active
+end
+
 -- Spawn-rate multiplier right now (1, or Timings.RushHour.SpawnMultiplier while active).
 function RushHourService.GetSpawnMultiplier(): number
 	return if state.active then Timings.RushHour.SpawnMultiplier else 1

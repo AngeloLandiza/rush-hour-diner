@@ -788,7 +788,9 @@ local function plotTick(plotId: number, t: number)
 		-- it must not re-roll every loop tick, or legendaries (which make room) arrive ~20x too often.
 		local rush = RushHourService.IsActive()
 		runtime.nextSpawnAt = t + Orders.spawnInterval(rush)
-		local kind: Types.CustomerKind, legendaryId: Types.LegendaryId? = Orders.rollKind(rng, rush)
+		-- Legendary odds only get the Rush bonus during the free scheduled rush (paid rushes stay deterministic).
+		local kind: Types.CustomerKind, legendaryId: Types.LegendaryId? =
+			Orders.rollKind(rng, RushHourService.IsScheduledRush())
 		spawnCustomer(plotId, kind, legendaryId, false)
 	end
 end
