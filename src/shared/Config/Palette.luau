@@ -14,6 +14,8 @@ local Hex: { [string]: string } = {
 	KetchupDeep = "B22A36", -- ketchup, darkened
 	MintDeep = "1E968B", -- mint, darkened
 	MustardDeep = "D98F00", -- mustard, darkened
+	NightInk = "14213D", -- ink, darkened for night ambient
+	PinkGlow = "FFE3F0", -- near-white neon pink, for subtle tints
 }
 
 local Color: { [string]: Color3 } = {}
