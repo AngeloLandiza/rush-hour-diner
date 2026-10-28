@@ -3,8 +3,9 @@
 -- uploaded via tools/upload_assets.luau (ids come from assets/manifest.json). 0 = not uploaded yet.
 local Audio = {
 	Music = {
-		Day = { id = 0, volume = 0.35 },
-		Rush = { id = 0, volume = 0.5 },
+		-- APM Music via Roblox's licensed library (creator: APMOfficial).
+		Day = { id = 1839978256, volume = 0.3 }, -- "Rockabilly Stroll (a)", 150s, 1950s rockabilly
+		Rush = { id = 1839977488, volume = 0.45 }, -- "Animal House", 94s, rocking 60s sunshine pop
 	},
 	Sfx = {
 		Sizzle = { id = 77033876696234, volume = 0.6 },
