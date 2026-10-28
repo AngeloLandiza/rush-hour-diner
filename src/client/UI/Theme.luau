@@ -110,7 +110,7 @@ local Theme = {
 		StationPanelMaxWidth = 380,
 		StationBigButtonHeight = 72,
 		StationBarHeight = 22,
-		StationCloseDistanceFactor = 1.6, -- close panel past InteractRange * this
+		StationCloseDistanceFactor = 1, -- close panel past InteractRange * this (server rejects beyond 1x)
 		StationCheckSeconds = 0.25,
 		FlipMarkerWidth = 6,
 

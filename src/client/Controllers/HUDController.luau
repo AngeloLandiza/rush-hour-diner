@@ -19,6 +19,7 @@ local Schedule = require(ReplicatedStorage.Shared.Logic.Schedule)
 local SettingsPanel = require(script.Parent.Parent.UI.Screens.SettingsPanel)
 local ShopController = require(script.Parent.ShopController)
 local State = require(script.Parent.Parent.State)
+local Streak = require(ReplicatedStorage.Shared.Logic.Streak)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Ticker = require(script.Parent.Parent.UI.Ticker)
 local Tween = require(script.Parent.Parent.UI.Tween)
@@ -278,7 +279,8 @@ function HUDController.Start()
 		-- Streak
 		local cycle = #Economy.StreakRewards
 		if data.streakClaimable then
-			local nextDay = data.streak.day % cycle + 1
+			local consecutive = data.streak.day >= 1 and data.streak.lastClaimDay == Streak.dayIndex(State.now()) - 1
+			local nextDay = if consecutive then data.streak.day % cycle + 1 else 1
 			streak:SetText(`Claim day {nextDay}: +{Economy.StreakRewards[nextDay]}`)
 			streak:SetColor(C.Mustard)
 			streak:SetEnabled(true)

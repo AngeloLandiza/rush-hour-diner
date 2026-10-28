@@ -68,6 +68,10 @@ function TutorialController.Init() end
 function TutorialController.Start()
 	State.waitReady()
 	local data = State.data
+	while not data do
+		task.wait(U.ClockSeconds)
+		data = State.data
+	end
 	if not data or data.tutorialDone then
 		return
 	end

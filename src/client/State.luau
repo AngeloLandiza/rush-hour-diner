@@ -78,20 +78,23 @@ function State.waitReady()
 end
 
 local function recomputePlot()
-	local mine: number? = nil
+	-- The server-set attribute is the plot the player actually works on (owned or crew).
+	local attr = localPlayer:GetAttribute(WorldSchema.Attributes.PlayerPlotId)
+	if typeof(attr) == "number" then
+		State.myPlotId = attr
+		return
+	end
+	local owned: number? = nil
 	for _, plot in State.plots do
-		if plot.ownerUserId == localPlayer.UserId or table.find(plot.crewUserIds, localPlayer.UserId) then
-			mine = plot.plotId
-			break
+		if table.find(plot.crewUserIds, localPlayer.UserId) then
+			State.myPlotId = plot.plotId
+			return
+		end
+		if plot.ownerUserId == localPlayer.UserId then
+			owned = plot.plotId
 		end
 	end
-	if mine == nil then
-		local attr = localPlayer:GetAttribute(WorldSchema.Attributes.PlayerPlotId)
-		if typeof(attr) == "number" then
-			mine = attr
-		end
-	end
-	State.myPlotId = mine
+	State.myPlotId = owned or State.myPlotId
 end
 
 local function applyPlots(plots: { Types.PlotInfo })
@@ -101,12 +104,12 @@ local function applyPlots(plots: { Types.PlotInfo })
 end
 
 local function applySnapshot(snap: Remotes.Snapshot)
-	State.data = snap.data
+	if snap.data then
+		State.data = snap.data
+	end
 	State.plots = snap.plots
 	State.myPlotId = snap.myPlotId
-	if State.myPlotId == nil then
-		recomputePlot()
-	end
+	recomputePlot()
 	State.stations = {}
 	for _, s in snap.stations do
 		State.stations[State.stationKey(s.plotId, s.slot)] = s
@@ -123,6 +126,10 @@ local function applySnapshot(snap: Remotes.Snapshot)
 end
 
 function State.Init()
+	localPlayer:GetAttributeChangedSignal(WorldSchema.Attributes.PlayerPlotId):Connect(function()
+		recomputePlot()
+		State.Changed.Plots:Fire(State.plots)
+	end)
 	local ev = Net.event
 	ev("DataSync").OnClientEvent:Connect(function(view: Types.PlayerDataView)
 		State.data = view
