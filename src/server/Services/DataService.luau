@@ -67,6 +67,7 @@ local store = ProfileStore.New(Timings.Data.ProfileStoreName, newTemplate())
 
 local profiles: { [Player]: any } = {}
 local loading: { [Player]: boolean } = {}
+local loadFailed: { [Player]: boolean } = {}
 local passCache: { [Player]: { [string]: boolean } } = {}
 local unconfirmedReceipts: { [Player]: { [string]: boolean } } = {}
 local syncQueue: { [Player]: boolean } = {}
@@ -99,7 +100,7 @@ function DataService.WaitForData(player: Player, timeoutSeconds: number?): Types
 		if data then
 			return data
 		end
-		if not loading[player] then
+		if loadFailed[player] then
 			return nil
 		end
 		task.wait(WAIT_POLL_SECONDS)
@@ -346,6 +347,7 @@ local function loadPlayer(player: Player)
 	end
 	if profile == nil then
 		loading[player] = nil
+		loadFailed[player] = true
 		if not cancelled() then
 			player:Kick(LOAD_FAIL_MESSAGE)
 		end
@@ -391,6 +393,7 @@ end
 local function onPlayerRemoving(player: Player)
 	releaseProfile(player)
 	loading[player] = nil
+	loadFailed[player] = nil
 	passCache[player] = nil
 	unconfirmedReceipts[player] = nil
 	syncQueue[player] = nil

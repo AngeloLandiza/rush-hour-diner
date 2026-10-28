@@ -54,12 +54,12 @@ local function debugAll(): boolean
 end
 
 function PurchaseService.OwnsPass(player: Player, pass: Types.PassKey): boolean
+	if debugAll() then
+		return true
+	end
 	local def = Products.Passes[pass]
 	if not def or def.id == 0 then
 		return false
-	end
-	if debugAll() then
-		return true
 	end
 	local cache = ownership[player]
 	return cache ~= nil and cache[pass] == true
