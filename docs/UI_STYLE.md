@@ -319,3 +319,19 @@ station panel is open.
   to nil to restore the real viewport.
 - `screen_capture` does not render BillboardGuis. To review bubbles and prompts, clone
   `OrderBubble.Bubble` or `RHD_Prompt.Hit` into a temporary Sibling ScreenGui.
+
+## 8. Patterns added after playtest 2
+
+- **Intro camera (CameraController).**
+  - On spawn, respawn or a plot change, a 1.2s move goes from the street to a 3/4 view of your diner: 38° pitch, 20° yaw, zoom 24 (up to 32 on narrow screens).
+  - The Custom camera inherits that angle. Zoom is then clamped to 10–45.
+  - The camera rides over the counter instead of clipping into it.
+- **Loading skeletons.**
+  - Before the snapshot arrives, timers show a shimmering `--:--`, and coins and restock show `--`.
+  - Each element pops in when its data arrives.
+  - Chips with no text stay hidden.
+- **Shop value communication.**
+  - Effect lines are derived from `Logic/Upgrades` (current → next), e.g. "Grill cook time −33%" or "+1 seat (2 → 3)". Never hardcode them.
+  - Multi-level upgrades show level pips (`●○○ 1/3`). The card turns mint when MAXED.
+  - Unaffordable items show a `24 / 60` progress bar under the red price.
+  - A purchase pops the card with a sparkle, and the coin counters tick down.

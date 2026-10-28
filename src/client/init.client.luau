@@ -9,6 +9,7 @@ local BOOT_ORDER: { { name: string, module: Module } } = {
 	{ name = "State", module = require(script.State) },
 	{ name = "InputController", module = require(Controllers.InputController) },
 	{ name = "SettingsController", module = require(Controllers.SettingsController) },
+	{ name = "CameraController", module = require(Controllers.CameraController) },
 	{ name = "HUDController", module = require(Controllers.HUDController) },
 	{ name = "ShopController", module = require(Controllers.ShopController) },
 	{ name = "StationController", module = require(Controllers.StationController) },

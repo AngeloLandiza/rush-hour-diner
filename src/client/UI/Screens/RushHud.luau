@@ -11,6 +11,7 @@ local Economy = require(ReplicatedStorage.Shared.Config.Economy)
 local Icons = require(script.Parent.Parent.Icons)
 local Root = require(script.Parent.Parent.Root)
 local Schedule = require(ReplicatedStorage.Shared.Logic.Schedule)
+local Skeleton = require(script.Parent.Parent.Components.Skeleton)
 local Stamp = require(script.Parent.Parent.Components.Stamp)
 local State = require(script.Parent.Parent.Parent.State)
 local Stripes = require(script.Parent.Parent.Components.Stripes)
@@ -98,6 +99,8 @@ function RushHud.new(parent: Instance): RushHud
 		ZIndex = 3,
 	}, C.Outline)
 	local idleCountdown = Countdown.new(value, Util.mmss)
+	-- "--:--" shimmer until the snapshot brings the real Rush Hour state.
+	local valueSkeleton = Skeleton.text(value, Theme.Skeleton.Clock)
 
 	-- Active bar
 	local bar = Util.frame(root, { Name = "Bar", Size = UDim2.fromScale(1, 1), Visible = false })
@@ -229,6 +232,12 @@ function RushHud.new(parent: Instance): RushHud
 			end
 		end,
 		Step = function(_, now: number)
+			if not State.Ready then
+				return
+			end
+			if valueSkeleton:IsLoading() then
+				valueSkeleton:Reveal()
+			end
 			local rh = State.rushHour
 			local active = rh ~= nil and rh.active and rh.endsAt ~= nil and now < rh.endsAt
 			if active ~= wasActive then

@@ -112,6 +112,8 @@ function TutorialController.Start()
 		position = UDim2.new(0.5, 0, 1, -U.Margin),
 		size = UDim2.new(1, -U.Margin * 2, 0, U.CoachHeight),
 	})
+	-- Hidden until it has a line to show, so it never flashes up empty.
+	coach.instance.Visible = false
 	Util.maxSize(coach.instance, U.CoachMaxWidth)
 	if coach.stroke then
 		coach.stroke.Color = C.Accent
@@ -171,12 +173,10 @@ function TutorialController.Start()
 		TextColor3 = C.TextOnGlassMuted,
 		ZIndex = 5,
 	})
-	Tween.popIn(coach.instance)
-
 	local stationOpen = false
 	local function placeCoach()
 		local hide = stationOpen and Root.isShort()
-		coach.instance.Visible = not finished and not hide
+		coach.instance.Visible = not finished and not hide and text.Text ~= ""
 		local bottom = U.Margin
 		if stationOpen then
 			bottom += U.StationPanelHeight + U.Margin + Space.LG
@@ -196,8 +196,14 @@ function TutorialController.Start()
 
 	local currentStep = 0
 	local function setStep(n: number, caption: string)
+		local first = false
 		if text.Text ~= caption then
+			first = text.Text == ""
 			text.Text = caption
+			if first then
+				placeCoach()
+				Tween.popIn(coach.instance)
+			end
 		end
 		if n == currentStep then
 			return
@@ -207,7 +213,9 @@ function TutorialController.Start()
 		for i, d in dotFrames do
 			d.BackgroundColor3 = if i <= n then C.Accent else C.TextOnGlassMuted
 		end
-		Tween.bounce(coach.instance, 1.08)
+		if not first then
+			Tween.bounce(coach.instance, 1.08)
+		end
 	end
 
 	-- ── World guide ─────────────────────────────────────────────────────────

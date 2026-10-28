@@ -1,7 +1,10 @@
 --!strict
 -- Shop modal: Upgrades / Passes / Products tabs of item cards (icon tile, name, effect, level pips,
 -- price button), plus the opt-in rewarded ad as a featured "free" card. Coin prices are mustard,
--- Robux prices are mint, free rewards are pink, so paid and earned never look alike. Owner: UI agent.
+-- Robux prices are mint, free rewards are pink, so paid and earned never look alike.
+-- Upgrade cards spell out the exact effect (UI/UpgradeText, derived from Config + Logic), show level
+-- pips and a MAXED state, and track progress toward an unaffordable price ("24 / 60" bar). Buying
+-- pops the card with a sparkle while the header coin balance ticks down. Owner: UI agent.
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,11 +12,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Button = require(script.Parent.Parent.Components.Button)
 local Card = require(script.Parent.Parent.Components.Card)
 local Confetti = require(script.Parent.Parent.Components.Confetti)
+local CurrencyCounter = require(script.Parent.Parent.Components.CurrencyCounter)
 local Icons = require(script.Parent.Parent.Icons)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Panel = require(script.Parent.Parent.Components.Panel)
 local Products = require(ReplicatedStorage.Shared.Config.Products)
+local ProgressBar = require(script.Parent.Parent.Components.ProgressBar)
 local Root = require(script.Parent.Parent.Root)
+local Skeleton = require(script.Parent.Parent.Components.Skeleton)
+local Sparkle = require(script.Parent.Parent.Components.Sparkle)
 local State = require(script.Parent.Parent.Parent.State)
 local Tabs = require(script.Parent.Parent.Components.Tabs)
 local Theme = require(script.Parent.Parent.Theme)
@@ -23,6 +30,7 @@ local Tween = require(script.Parent.Parent.Tween)
 local Types = require(ReplicatedStorage.Shared.Contracts.Types)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.Upgrades)
 local UpgradeLogic = require(ReplicatedStorage.Shared.Logic.Upgrades)
+local UpgradeText = require(script.Parent.Parent.UpgradeText)
 local Util = require(script.Parent.Parent.Util)
 
 local ShopPanel = {}
@@ -70,8 +78,13 @@ local PRODUCT_ICON: { [string]: string } = {
 	CoinsLarge = "Coins3",
 }
 
-local PIP = 9
+local PIP = U.PipSize
 local CONFETTI_SMALL = 18
+local LEVEL_LABEL_W = 56
+local ONE_LINE = 18
+local TWO_LINES = 30
+-- Rich-text colors for effect numbers: current value in ink, the gain in deep mint.
+local EFFECT_COLORS: UpgradeText.Colors = { value = C.Text:ToHex(), gain = C.SuccessEdge:ToHex() }
 
 type Row = { card: Card.Card, name: TextLabel, desc: TextLabel, pips: Frame, textWidth: number }
 
@@ -130,7 +143,7 @@ local function itemCard(
 		ZIndex = 3,
 		Visible = false,
 	})
-	Util.list(pips, Enum.FillDirection.Horizontal, Space.XS)
+	Util.list(pips, Enum.FillDirection.Horizontal, Space.XS, nil, Enum.VerticalAlignment.Center)
 	return { card = card, name = name, desc = sub, pips = pips, textWidth = textW }
 end
 
@@ -147,29 +160,54 @@ local function priceButton(row: Row, variant: Theme.VariantName, onActivated: ()
 	})
 end
 
-local function setPips(row: Row, level: number, maxLevel: number)
+-- Level row for multi-level upgrades: pips (●●○) plus "2/3", turning mint with "MAXED" once every
+-- level is bought. Single-level upgrades skip the row (their price button reads MAX) and get a
+-- two-line effect instead.
+local function setPips(row: Row, level: number, maxLevel: number, levelLabel: TextLabel)
+	levelLabel.Parent = nil
 	Util.clear(row.pips)
-	row.pips.Visible = maxLevel > 1
-	if maxLevel <= 1 then
+	local maxed = level >= maxLevel
+	local show = maxLevel > 1
+	row.pips.Visible = show
+	-- One-line effect when the level row is shown, two lines otherwise.
+	row.desc.Size = UDim2.new(1, row.textWidth, 0, if show then ONE_LINE else TWO_LINES)
+	if not show then
 		return
 	end
 	for i = 1, maxLevel do
 		local on = i <= level
-		local dot = Util.solid(row.pips, if on then C.Primary else C.Sunken, 0, {
+		local fillColor = if maxed then C.Success elseif on then C.Primary else C.Sunken
+		local edgeColor = if maxed then C.SuccessEdge elseif on then C.PrimaryEdge else C.SunkenDeep
+		local dot = Util.solid(row.pips, fillColor, 0, {
 			Size = UDim2.fromOffset(PIP * 2, PIP),
 			LayoutOrder = i,
 			ZIndex = 3,
 		})
 		Util.pill(dot)
-		Util.stroke(dot, if on then C.PrimaryEdge else C.SunkenDeep, Theme.Stroke.Hair + 0.5)
+		Util.stroke(dot, edgeColor, Theme.Stroke.Hair + 0.5)
 	end
-	-- Leave room for the pips under a one-line description.
-	row.desc.Size = UDim2.new(1, row.textWidth, 0, 18)
+	levelLabel.Parent = row.pips
+	levelLabel.LayoutOrder = maxLevel + 1
+	levelLabel.Text = if maxed then "MAXED" else `{level}/{maxLevel}`
+	levelLabel.TextColor3 = if maxed then C.SuccessEdge else C.TextMuted
 end
 
 local function celebrate(inst: GuiObject)
 	Tween.bounce(inst, 1.06)
 	local center = Root.toLocal(inst.AbsolutePosition + inst.AbsoluteSize / 2)
+	Confetti.burst(center, CONFETTI_SMALL)
+end
+
+-- The purchase moment on an upgrade card: a springy pop, a mint flash on the face and a sparkle.
+local function purchasePop(row: Row)
+	local s = Tween.scaleOf(row.card.instance)
+	s.Scale = Theme.MotionScale.Purchase
+	Tween.play(s, { Scale = 1 }, Theme.Motion.Purchase)
+	local face = row.card.face
+	face.BackgroundColor3 = C.SuccessLight
+	Tween.play(face, { BackgroundColor3 = C.Raised }, Theme.Motion.Purchase)
+	Sparkle.burst(row.card.instance)
+	local center = Root.toLocal(row.card.instance.AbsolutePosition + row.card.instance.AbsoluteSize / 2)
 	Confetti.burst(center, CONFETTI_SMALL)
 end
 
@@ -186,6 +224,17 @@ local function buildUpgrades(parent: Frame): (() -> (), () -> number)
 	for i, def in defs do
 		local row =
 			itemCard(parent, i, UPGRADE_ICON[def.id] or "Star", C.PrimaryLight, def.displayName, def.description)
+		row.desc.RichText = true
+		local levelLabel = Util.display(nil, "", {
+			Name = "Level",
+			Size = UDim2.fromOffset(LEVEL_LABEL_W, PIP + 4),
+			TextSize = Theme.Type.Micro,
+			TextColor3 = C.TextMuted,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 3,
+		})
+		row.pips.Size = UDim2.new(1, row.textWidth, 0, PIP + 4)
+		row.pips.Position = UDim2.fromOffset(row.pips.Position.X.Offset, U.CardHeight - PIP - Space.SM - 4)
 		local lastLevel = -1
 		local buy = priceButton(row, "primary", function()
 			local data = State.data
@@ -201,6 +250,38 @@ local function buildUpgrades(parent: Frame): (() -> (), () -> number)
 				Tween.shake(row.card.instance)
 			end
 		end)
+		-- Progress toward an unaffordable price, under the (red) price button.
+		local priceBlock = U.PriceButtonHeight + Theme.Depth.Lip
+		local progress = ProgressBar.new(
+			row.card.face,
+			UDim2.fromOffset(U.PriceButtonWidth, U.PriceProgressHeight),
+			C.Primary,
+			U.PriceProgressHeight,
+			U.PriceButtonWidth
+		)
+		progress.instance.Name = "PriceProgress"
+		progress.instance.AnchorPoint = Vector2.new(1, 0)
+		progress.instance.ZIndex = 3
+		progress.Caption.TextSize = Theme.Type.Micro
+		progress.instance.Visible = false
+		local stackTop = (U.CardHeight - (priceBlock + Space.XS + U.PriceProgressHeight)) / 2
+		progress.instance.Position = UDim2.new(1, -Space.SM - 2, 0, stackTop + priceBlock + Space.XS)
+		local raised: boolean? = nil
+		local function placePrice(withProgress: boolean)
+			if raised == withProgress then
+				return
+			end
+			local first = raised == nil
+			raised = withProgress
+			progress.instance.Visible = withProgress
+			local y = if withProgress then stackTop + priceBlock / 2 else U.CardHeight / 2
+			local target = UDim2.new(1, -Space.SM - 2, 0, y)
+			if first then
+				buy.instance.Position = target
+			else
+				Tween.play(buy.instance, { Position = target }, Theme.Motion.Slide)
+			end
+		end
 		local function refresh()
 			local data = State.data
 			if not data then
@@ -209,24 +290,32 @@ local function buildUpgrades(parent: Frame): (() -> (), () -> number)
 			local level = UpgradeLogic.getLevel(data.upgrades, def.id)
 			local cost = UpgradeLogic.nextCost(data.upgrades, def.id)
 			local ok = UpgradeLogic.canBuy(data.upgrades, data.coins, def.id)
-			setPips(row, level, def.maxLevel)
+			setPips(row, level, def.maxLevel, levelLabel)
+			row.desc.Text = UpgradeText.effect(def, data.upgrades, EFFECT_COLORS)
+			if row.card.stroke then
+				row.card.stroke.Color = if cost then C.NeutralEdge else C.SuccessEdge
+			end
 			if cost then
 				buy:SetIcon("Coin")
 				buy:SetText(Util.short(cost))
 				buy:SetVariant(if ok then "primary" else "secondary")
 				if not ok then
 					buy.label.TextColor3 = C.Danger
+					progress:SetFraction(if cost > 0 then data.coins / cost else 1)
+					progress:SetCaption(`{Util.short(data.coins)} / {Util.short(cost)}`)
 				end
 				if ok then
 					affordable += 1
 				end
+				placePrice(not ok)
 			else
 				buy:SetVariant("success")
 				buy:SetIcon("CheckWhite")
 				buy:SetText("MAX")
+				placePrice(false)
 			end
 			if lastLevel >= 0 and level > lastLevel then
-				celebrate(row.card.instance)
+				purchasePop(row)
 				buy:Bounce()
 				Toast.show(`{def.displayName} upgraded!`, "Success")
 			end
@@ -338,6 +427,32 @@ end
 
 function ShopPanel.new(): Shop
 	local panel = Panel.new("Shop", { icon = "Shop", accent = C.Danger })
+	-- Coin balance in the header so prices read against it, and purchases visibly tick it down.
+	local balance = CurrencyCounter.new({
+		parent = panel.Header,
+		icon = "Coin",
+		iconSize = U.ShopBalanceIcon,
+		textSize = Theme.Type.Title,
+		width = U.ShopBalanceWidth,
+		height = U.ShopBalanceHeight,
+		anchor = Vector2.new(1, 0.5),
+		position = UDim2.new(1, -(Theme.MinTouchTarget + Space.MD), 0.5, 0),
+	})
+	balance.instance.Name = "ShopBalance"
+	balance.instance.ZIndex = 4
+	local balanceSkeleton = Skeleton.text(balance.label, Theme.Skeleton.Number)
+	local function refreshBalance()
+		local data = State.data
+		if not data then
+			return
+		end
+		if balanceSkeleton:IsLoading() then
+			balanceSkeleton:Reveal()
+			balance:Set(data.coins, false)
+		else
+			balance:Set(data.coins, panel:IsOpen())
+		end
+	end
 	local tabs = Tabs.new(panel, {
 		{ name = UPGRADES, icon = "Bolt" },
 		{ name = PASSES, icon = "Crown" },
@@ -350,12 +465,14 @@ function ShopPanel.new(): Shop
 		buildPurchases(tabs.content[PRODUCTS], PRODUCT_ORDER, Products.Products :: any, PRODUCT_ICON, "Product")
 
 	local function refresh()
+		refreshBalance()
 		refreshUpgrades()
 		refreshPasses()
 		refreshProducts()
 		tabs:SetBadge(UPGRADES, affordable() > 0)
 	end
 	State.Changed.Data:Connect(refresh)
+	State.Changed.Snapshot:Connect(refresh)
 	State.Changed.PurchaseGranted:Connect(function()
 		Toast.show("Purchase complete! Thank you!", "Success")
 		if panel:IsOpen() then

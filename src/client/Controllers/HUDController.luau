@@ -4,6 +4,8 @@
 --   top-center Rush Hour widget, then boost/combo chips (second row on narrow screens)
 --   left rail Shop / Crew / Top icon tiles               right rail Daily / Restock tiles, menu drop
 --   bottom-center held-dish chip (rises above the station panel)
+-- The HUD builds immediately at boot: values that need the snapshot show a shimmering "--:--" / "--"
+-- skeleton until it arrives, then pop in.
 -- Owner: UI agent.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -26,6 +28,7 @@ local Root = require(script.Parent.Parent.UI.Root)
 local RushHud = require(script.Parent.Parent.UI.Screens.RushHud)
 local Schedule = require(ReplicatedStorage.Shared.Logic.Schedule)
 local SettingsPanel = require(script.Parent.Parent.UI.Screens.SettingsPanel)
+local Skeleton = require(script.Parent.Parent.UI.Components.Skeleton)
 local ShopController = require(script.Parent.ShopController)
 local ShopPanel = require(script.Parent.Parent.UI.Screens.ShopPanel)
 local State = require(script.Parent.Parent.State)
@@ -140,7 +143,6 @@ end
 function HUDController.Init() end
 
 function HUDController.Start()
-	State.waitReady()
 	local layer = Root.layer("HUD", U.ZHud)
 
 	-- ── Top-left: coins ─────────────────────────────────────────────────────
@@ -157,6 +159,7 @@ function HUDController.Start()
 	CoinFly.setTarget(coins.icon, function()
 		coins:Punch()
 	end)
+	local coinSkeleton = Skeleton.text(coins.label, Theme.Skeleton.Number)
 
 	-- ── Top-right: settings ─────────────────────────────────────────────────
 	local settings = SettingsPanel.new()
@@ -268,6 +271,7 @@ function HUDController.Start()
 		end
 	end
 	local restockTile = tile(right, 2, "Crate", "0", "secondary", collectRestock)
+	local restockSkeleton = Skeleton.text(restockTile.label, Theme.Skeleton.Number)
 	local restockTrack = Util.solid(restockTile.button.face, C.SunkenDeep, 0, {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -5),
@@ -300,6 +304,7 @@ function HUDController.Start()
 		TextColor3 = C.TextInverse,
 		ZIndex = 3,
 	}, C.Outline)
+	local dropSkeleton = Skeleton.text(dropLabel, Theme.Skeleton.Clock)
 
 	-- ── Bottom-center: held dish ────────────────────────────────────────────
 	local held = Card.new({
@@ -496,6 +501,11 @@ function HUDController.Start()
 			return
 		end
 		local target = data.coins
+		if coinSkeleton:IsLoading() then
+			coinSkeleton:Reveal()
+			coins:Set(target, false)
+			return
+		end
 		local wait = if target > coins:Value() then CoinFly.untilArrival() else 0
 		if animate and wait > 0 then
 			task.delay(wait, function()
@@ -515,6 +525,11 @@ function HUDController.Start()
 	end)
 	State.Changed.Held:Connect(refreshHeld)
 	State.Changed.Combo:Connect(refreshCombo)
+	State.Changed.Snapshot:Connect(function()
+		refreshCoins(false)
+		refreshStatic()
+		refreshHeld(State.held)
+	end)
 	refreshCoins(false)
 	refreshStatic()
 	refreshHeld(State.held)
@@ -537,6 +552,18 @@ function HUDController.Start()
 			return
 		end
 		sinceSlow = 0
+		if not State.Ready then
+			return
+		end
+
+		-- Menu drop (needs only the synced server clock)
+		local dropText = Util.longClock(Schedule.nextMenuDropAt(now) - now)
+		if dropSkeleton:IsLoading() then
+			dropSkeleton:Reveal(dropText)
+		else
+			dropLabel.Text = dropText
+		end
+
 		local data = State.data
 		if not data then
 			return
@@ -545,6 +572,9 @@ function HUDController.Start()
 		-- Restock
 		local pending = math.max(data.restockPending, Offline.pending(data.lastRestock, now, data.upgrades))
 		local cap = Offline.fullRestock(data.upgrades)
+		if restockSkeleton:IsLoading() then
+			restockSkeleton:Reveal()
+		end
 		restockTile.label.Text = Util.short(pending)
 		local f = if cap > 0 then Util.clamp01(pending / cap) else 0
 		restockFill.Size = UDim2.fromScale(f, 1)
@@ -557,9 +587,6 @@ function HUDController.Start()
 				Tween.bounce(restockTile.root)
 			end
 		end
-
-		-- Menu drop
-		dropLabel.Text = Util.longClock(Schedule.nextMenuDropAt(now) - now)
 
 		-- Boosts
 		local shown = 0

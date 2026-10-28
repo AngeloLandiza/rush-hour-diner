@@ -19,6 +19,7 @@ export type Options = {
 
 export type Panel = {
 	instance: Frame,
+	Header: Frame, -- colored band; screens may add widgets (e.g. the shop's coin balance)
 	Body: ScrollingFrame,
 	Toolbar: Frame,
 	Open: (self: Panel) -> (),
@@ -188,6 +189,7 @@ function Panel.new(title: string, opts: Options?): Panel
 	local self: Panel
 	self = {
 		instance = root,
+		Header = header,
 		Body = body,
 		Toolbar = toolbar,
 		OnOpen = nil,

@@ -112,6 +112,8 @@ local Theme = {
 	Images = UIConfig.Images,
 	UI = UIConfig.Layout,
 	FX = UIConfig.FX,
+	Camera = UIConfig.Camera,
+	Skeleton = UIConfig.Skeleton,
 	MinTouchTarget = UIConfig.Layout.MinTouchTarget,
 
 	-- Toast kind -> accent role and icon name.

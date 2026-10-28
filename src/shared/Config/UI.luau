@@ -189,6 +189,12 @@ local UI = {
 		CoinTravel = { seconds = 0.5, style = "Quad", direction = "In" },
 		BannerIn = { seconds = 0.45, style = "Back", direction = "Out" },
 		BannerOut = { seconds = 0.3, style = "Back", direction = "In" },
+		CameraIntro = { seconds = 1.2, style = "Cubic", direction = "InOut" },
+		Shimmer = { seconds = 1.1, style = "Linear", direction = "In" },
+		Purchase = { seconds = 0.5, style = "Back", direction = "Out" },
+		Sparkle = { seconds = 0.28, style = "Back", direction = "Out" },
+		SparkleOut = { seconds = 0.32, style = "Quad", direction = "In" },
+		SpendFloat = { seconds = 0.9, style = "Quad", direction = "Out" },
 	} :: { [string]: MotionSpec },
 
 	-- Scales used by the motion helpers.
@@ -200,6 +206,40 @@ local UI = {
 		Bounce = 1.18,
 		Pulse = 0.05,
 		PressSink = 0.75, -- fraction of the lip the face sinks on press
+		Purchase = 1.1, -- shop card pop on a level-up
+		SpendDip = 0.92, -- coin counter squash while it ticks down
+	},
+
+	-- Gameplay camera (studs / degrees). The intro frames the player's own diner on spawn, respawn and
+	-- plot change, then hands the same angle to the Custom camera. Plot-local +Z faces the street.
+	Camera = {
+		Zoom = 24, -- default orbit distance (landscape / desktop)
+		PortraitZoomMax = 32, -- narrow screens zoom out until FrameHalfWidth fits, up to this
+		FrameHalfWidth = 11, -- studs either side of the player that must stay in view
+		ZoomMin = 10,
+		ZoomMax = 45,
+		PitchDegrees = 38, -- look-down angle of the default orbit
+		YawDegrees = 20, -- 3/4 offset from the plot's street axis toward plot +X
+		IntroZoom = 50, -- establishing shot from over the street
+		IntroPitchDegrees = 26,
+		IntroYawDegrees = -18,
+		IntroFocus = { X = 0, Y = 4, Z = -6 }, -- plot-local point the establishing shot looks at
+		SubjectHeight = 1.5, -- Custom camera focus above the HumanoidRootPart (R15 head offset)
+		ArriveDistance = 20, -- character counts as "on the plot" within this many studs of Spawn
+		ArriveTimeoutSeconds = 6,
+		CharacterWaitSeconds = 10,
+		HandoffFrames = 3, -- frames the zoom stays pinned after handing back to the Custom camera
+		CounterMargin = 1.2, -- guard box around the counter (studs)
+		CounterClearance = 1.5, -- the camera is lifted to this height above the counter top
+	},
+
+	-- Loading skeletons (shown until the first snapshot / data arrives).
+	Skeleton = {
+		Clock = "--:--",
+		Number = "--",
+		DimTransparency = 0.55, -- placeholder text transparency outside the shimmer band
+		BandTransparency = 0.05,
+		BandWidth = 0.12, -- fraction of the label the shimmer band covers (each side of center)
 	},
 
 	-- Layout (design px) and UI timers. Theme.UI exposes this table.
@@ -272,6 +312,13 @@ local UI = {
 		CardIcon = 54,
 		PriceButtonWidth = 104,
 		PriceButtonHeight = 44,
+		PriceProgressHeight = 12, -- "24 / 60" bar under an unaffordable price
+		PipSize = 9,
+		SparkleCount = 7,
+		SparkleSize = 18,
+		ShopBalanceWidth = 112,
+		ShopBalanceHeight = 32,
+		ShopBalanceIcon = 34,
 		LeaderboardRows = 10,
 		LeaderRowHeight = 50,
 		SettingRowHeight = 58,
