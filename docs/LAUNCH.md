@@ -32,7 +32,7 @@ Create each item in the Creator Hub (open the experience, then Monetization: Pas
 **Notes**
 
 - **Coin packs** have empty descriptions in the config. Creator Hub may require one, so use the suggested text above and add it to `Products.luau`.
-- **`Products.AdTipBoost` is not a store item.** It is a free product used only as the reward for an opt-in rewarded video ad. Do not list it for sale and do not promote it in the store. If Creator Hub does not accept a 0 Robux price, do not work around it with a fake price. Check Roblox's rewarded video ad documentation for the supported setup.
+- **`Products.AdTipBoost` is not a store item.** It is only the reward for an opt-in rewarded video ad, granted through AdService. Roblox requires dev products to cost more than 0, so it uses the 1 R$ minimum. It never appears in the shop. Do not promote it. Rewarded ads also need your account to be eligible (Creator Hub → Monetization → Ads).
 - **Name and description limits** are set by Creator Hub. If a field rejects the text, shorten it and keep the meaning.
 - After creating the items, confirm that each `id` in `Products.luau` is a real non-zero ID and that the prices match the table.
 
