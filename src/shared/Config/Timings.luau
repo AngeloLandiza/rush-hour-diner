@@ -62,6 +62,12 @@ local Timings = {
 		LeaderboardStoreName = "LifetimeCoins_v1",
 		LeaderboardRefreshSeconds = 120,
 		LeaderboardSize = 10,
+		SchemaVersion = 1,
+		SaveConfirmTimeoutSeconds = 20,
+		DataWaitTimeoutSeconds = 60,
+		ReceiptDataWaitSeconds = 30,
+		OwnershipRetryAttempts = 3,
+		OwnershipRetryDelaySeconds = 2,
 	},
 
 	Ads = {
