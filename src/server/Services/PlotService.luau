@@ -230,6 +230,7 @@ local function leave(player: Player)
 		if index then
 			table.remove(plot.crew, index)
 			Events.CrewChanged:Fire(plotId, crewList(plot))
+			broadcast()
 		end
 	end
 	current[player] = nil

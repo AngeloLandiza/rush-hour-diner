@@ -21,7 +21,6 @@ local Types = require(ReplicatedStorage.Shared.Contracts.Types)
 local UpgradeLogic = require(ReplicatedStorage.Shared.Logic.Upgrades)
 local WorldSchema = require(ReplicatedStorage.Shared.Contracts.WorldSchema)
 
-local AudioDirector = require(script.Parent.Parent.World.AudioDirector)
 local DataService = require(script.Parent.DataService)
 local Guard = require(script.Parent.Parent.Util.Guard)
 local MapBuilder = require(script.Parent.Parent.World.MapBuilder)
@@ -256,6 +255,9 @@ local function createModel(rec: Rec): boolean
 	prompt.ObjectText = displayName(data)
 	prompt.HoldDuration = 0
 	prompt.RequiresLineOfSight = false
+	prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
+	prompt.KeyboardKeyCode = Enum.KeyCode.F
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
 	prompt.MaxActivationDistance = Timings.Serve.InteractRange
 	prompt.Enabled = false
 	prompt.Parent = root
@@ -387,7 +389,6 @@ local function runCustomer(rec: Rec)
 	if data.kind == "Legendary" then
 		Events.LegendaryArrived:Fire(data)
 		announceLegendary(rec, nil, nil)
-		AudioDirector.PlaySfx("Legendary", rec.root)
 		if rec.root then
 			Presets.Burst("LegendarySparkle", rec.root)
 		end
@@ -538,12 +539,6 @@ local function completeServe(rec: Rec, payer: Player, quality: Types.CookQuality
 	local payout = EconomyLogic.computePayout(ctx)
 	combos[payer] = payout.combo
 	DataService.AddCoins(payer, payout.total, "Serve")
-	DataService.Update(payer, function(d)
-		d.stats.dishesServed += 1
-		if data.kind == "Legendary" then
-			d.stats.legendaryServed += 1
-		end
-	end)
 
 	local result: Types.ServeResult = {
 		player = payer,
