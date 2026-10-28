@@ -146,6 +146,12 @@ local function seatPart(plotId: number, seatIndex: number): BasePart?
 	return if seat and seat:IsA("BasePart") then seat else nil
 end
 
+-- World position of a seat's aisle waypoint; nil when the plot predates the Approach attachment.
+local function approachPosition(seat: BasePart?): Vector3?
+	local attachment = seat and seat:FindFirstChild(WorldSchema.Parts.SeatApproach)
+	return if attachment and attachment:IsA("Attachment") then attachment.WorldPosition else nil
+end
+
 -- ── Models ──────────────────────────────────────────────────────────────────
 
 local function createModel(rec: Rec): boolean
@@ -317,7 +323,11 @@ local function leaveAndDespawn(rec: Rec, reason: Types.LeaveReason)
 	sendView(rec)
 	standUp(rec)
 	local spawn, door = plotParts(rec.data.plotId)
-	if door then
+	local approach = approachPosition(seatPart(rec.data.plotId, rec.data.seatIndex))
+	if approach then
+		walkTo(rec, approach)
+	end
+	if door and not rec.dead then
 		walkTo(rec, door.Position)
 	end
 	if spawn and not rec.dead then
@@ -338,6 +348,12 @@ local function runCustomer(rec: Rec)
 		walkTo(rec, door.Position)
 	end
 	local seat = seatPart(data.plotId, data.seatIndex)
+	if seat and not rec.dead then
+		local approach = approachPosition(seat)
+		if approach then
+			walkTo(rec, approach)
+		end
+	end
 	if seat and not rec.dead then
 		walkTo(rec, seat.Position)
 		if rec.dead then
@@ -635,6 +651,22 @@ local function tweenModel(model: Model, target: CFrame, seconds: number)
 	tween.Completed:Wait()
 	conn:Disconnect()
 	value:Destroy()
+end
+
+-- Tweens through `points` in order, splitting `seconds` by leg length.
+local function tweenPath(model: Model, points: { CFrame }, seconds: number)
+	local total = 0
+	local last = model:GetPivot().Position
+	for _, cf in points do
+		total += (cf.Position - last).Magnitude
+		last = cf.Position
+	end
+	last = model:GetPivot().Position
+	for _, cf in points do
+		local leg = (cf.Position - last).Magnitude
+		last = cf.Position
+		tweenModel(model, cf, if total > 0 then seconds * leg / total else seconds / #points)
+	end
 end
 
 local function destroyBot(runtime: PlotRuntime)
