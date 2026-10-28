@@ -364,6 +364,10 @@ local function dishName(dishId: Types.DishId): string
 	return Dishes.Defs[dishId].displayName
 end
 
+local SERVE_DEBOUNCE_SECONDS = 0.25
+local lastServeAt = -math.huge
+local lastServeId = 0
+
 local function onTriggered(prompt: ProximityPrompt, who: Player)
 	if who ~= Players.LocalPlayer then
 		return
@@ -387,6 +391,10 @@ local function onTriggered(prompt: ProximityPrompt, who: Player)
 		return
 	end
 	if view and view.dishId and view.dishId ~= held.dishId then
+		-- Another prompt fired for a different customer this frame: that serve wins, no hint.
+		if lastServeId ~= id and os.clock() - lastServeAt < SERVE_DEBOUNCE_SECONDS then
+			return
+		end
 		Toast.show(`They want {dishName(view.dishId)}, you are holding {dishName(held.dishId)}`, "Warning")
 		if b then
 			Tween.shake(b.root)
@@ -394,6 +402,8 @@ local function onTriggered(prompt: ProximityPrompt, who: Player)
 		end
 		return
 	end
+	lastServeAt = os.clock()
+	lastServeId = id
 	Net.event("ServeCustomer"):FireServer({ customerId = id })
 end
 

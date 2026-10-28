@@ -267,7 +267,7 @@ local function createModel(rec: Rec): boolean
 	prompt.ObjectText = displayName(data)
 	prompt.HoldDuration = 0
 	prompt.RequiresLineOfSight = false
-	prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
+	prompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
 	prompt.KeyboardKeyCode = Enum.KeyCode.F
 	prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
 	prompt.MaxActivationDistance = Timings.Serve.InteractRange

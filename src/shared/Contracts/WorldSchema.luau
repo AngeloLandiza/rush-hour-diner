@@ -70,7 +70,7 @@ local WorldSchema = {
 	},
 	-- ProximityPrompt conventions (server creates prompts; client listens via ProximityPromptService):
 	--   Station "Cook":  KeyboardKeyCode E, GamepadKeyCode ButtonX, Exclusivity OnePerButton
-	--   Customer "Serve": KeyboardKeyCode F, GamepadKeyCode ButtonY, Exclusivity AlwaysShow
+	--   Customer "Serve": KeyboardKeyCode F, GamepadKeyCode ButtonY, Exclusivity OnePerButton (distinct key from Cook)
 	--   Hidden slots/seats must set prompt.Enabled = false.
 	-- CollectionService tags
 	Tags = {

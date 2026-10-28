@@ -182,12 +182,24 @@ local function wallClock(ctx: Ctx, x: number, y: number)
 end
 
 -- A row of RushNeon bulbs from p0 to p1 sagging by `sag` in the middle. Every `lightEvery`th bulb lights.
-local function stringLights(ctx: Ctx, p0: Vector3, p1: Vector3, count: number, sag: number, lightEvery: number)
+-- Bulbs inside `avoid` (x/y rectangle) are skipped so they never cover signage lettering.
+local function stringLights(
+	ctx: Ctx,
+	p0: Vector3,
+	p1: Vector3,
+	count: number,
+	sag: number,
+	lightEvery: number,
+	avoid: { x0: number, x1: number, y0: number, y1: number }?
+)
 	local colors = { C.Mustard, C.NeonPink, C.Mint }
 	for i = 1, count do
 		local t = (i - 0.5) / count
 		local p = p0:Lerp(p1, t) - Vector3.new(0, sag * 4 * t * (1 - t), 0)
 		local color = colors[(i - 1) % #colors + 1]
+		if avoid and p.X >= avoid.x0 and p.X <= avoid.x1 and p.Y >= avoid.y0 and p.Y <= avoid.y1 then
+			continue
+		end
 		local bulb =
 			Build.Ball(ctx.shell, "Bulb", Vector3.new(0.6, 0.75, 0.6), at(ctx, p.X, p.Y, p.Z), color, Build.Neon)
 		Build.Soft(bulb)
@@ -393,7 +405,9 @@ local function tierStand(ctx: Ctx)
 	awning(ctx, 0, WX * 2 - 1, 12, 9.3, 1.6, F + 12.4, ZB + 0.6)
 	-- String lights along the awning edge, under the scallops
 	local edgeY = F + 12.4 - 1.6 - 0.9 - 0.95
-	stringLights(ctx, Vector3.new(-(WX - 1), edgeY, -14.4), Vector3.new(WX - 1, edgeY, -14.4), 14, 0.5, 4)
+	-- Menu board is 18 wide, 3.6 tall (frame) centred at F + 8.2: keep bulbs off it, with 1 stud margin.
+	local boardAvoid = { x0 = -10, x1 = 10, y0 = F + 8.2 - 2.8, y1 = F + 8.2 + 2.8 }
+	stringLights(ctx, Vector3.new(-(WX - 1), edgeY, -14.4), Vector3.new(WX - 1, edgeY, -14.4), 14, 0.5, 4, boardAvoid)
 	-- Props: produce crates, potted plants, an OPEN chalkboard by the path
 	for i, x in { -26.5, 26.5 } do
 		box(ctx, "Crate", Vector3.new(2.4, 1.6, 2), x, F + 0.8, -3, C.WoodLight)

@@ -109,3 +109,45 @@
 
 ### Launch kit (H)
 - `docs/LAUNCH.md` covers the Creator Hub product table, titles, descriptions, icon, thumbnails, 10 Shorts scripts and maturity guidance.
+
+## Wave 3: Security review, Studio playtests, art and UI overhaul (2026-10-28)
+
+### Security and compliance review (I, fresh context)
+- No Critical or High findings. ProcessReceipt is idempotent, and all 12 remotes are validated.
+- **Fixed:**
+  - Instant Restock now pays out pending plus a full restock.
+  - A failed save session no longer steals another server's session.
+  - Per-player state no longer leaks after a yield.
+  - The ad availability check fails closed.
+  - Crew joins are re-validated after the friendship yield.
+  - Guard rate-limits before walking the payload.
+- **Documented:** Max Players 6 and the R15 universe setting, in `docs/LAUNCH.md`.
+- **Open (Low):** distance checks trust the character's position, so movement isn't verified server-side.
+
+### Studio playtests (orchestrator, via the Studio MCP)
+- **Verified end to end:**
+  - join → R15 → plot claim → customers within seconds
+  - cook (Start/Flip/Collect) → serve (F) → payout → HUD
+  - streak, upgrade purchase, and rejected exploit probes
+  - Rush Hour on the hour, with lighting, neon and HUD
+  - a legendary spawn, the server-wide announcement and banner, and a 312-coin tip
+- **Fixed from the playtests:**
+  - customers standing on stools, and missing faces
+  - Rush preset washed out, then overcorrected
+  - legendaries lost when seats were full
+  - blank crew sign
+  - Serve prompts firing together
+  - bulbs covering the menu board
+- **Added:** Studio-only debug hooks (`workspace` attributes `DebugRushNow`, `DebugLegendary`, `DebugAllPasses`).
+
+### Art overhaul (Opus)
+- Retro diner decor tiers, a detailed street, chrome stations, and the `RushNeon` tag on 160 neon parts.
+- Generated meshes for the dishes and the bot, loaded at runtime from `Config/Art` with primitive fallbacks.
+- Fixed stations sitting below the floor.
+- 2,492 parts at max decor.
+
+### UI redesign (Opus, "Neon Diner Pop")
+- A research-backed `docs/UI_STYLE.md`.
+- Icon stickers, 3D press buttons, a currency count-up with coin fly, and a neon Rush bar.
+- Patience-ring bubbles, custom prompts and a coach-mark tutorial.
+- Verified in Studio across 4 rounds, including 360×640 portrait and landscape.
