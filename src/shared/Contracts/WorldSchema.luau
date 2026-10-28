@@ -55,6 +55,9 @@ local WorldSchema = {
 		PlotId = "PlotId",
 		Slot = "Slot",
 		StationId = "StationId",
+		-- On Slot_<k> models, set by StationService on every phase change (read by World/StationVisuals):
+		StationPhase = "Phase", -- Types.StationPhase
+		StationQuality = "Quality", -- Types.CookQuality once flipped, else nil
 		SeatIndex = "SeatIndex",
 		CustomerId = "CustomerId",
 		Kind = "Kind",
