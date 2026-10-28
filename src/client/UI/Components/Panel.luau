@@ -39,6 +39,12 @@ local Space = Theme.Space
 
 local openPanel: Panel? = nil
 local scrim: TextButton? = nil
+local openListeners: { () -> () } = {}
+
+-- Calls fn whenever any modal opens (the station panel closes itself so it never covers a modal).
+function Panel.onAnyOpen(fn: () -> ())
+	table.insert(openListeners, fn)
+end
 
 local OPEN_FROM = 0.86
 
@@ -200,6 +206,9 @@ function Panel.new(title: string, opts: Options?): Panel
 			end
 			openPanel = this
 			this._open = true
+			for _, fn in openListeners do
+				fn()
+			end
 			Tooltip.hide()
 			showScrim(true)
 			this.instance.Visible = true

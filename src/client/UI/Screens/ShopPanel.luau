@@ -22,6 +22,8 @@ local Root = require(script.Parent.Parent.Root)
 local Skeleton = require(script.Parent.Parent.Components.Skeleton)
 local Sparkle = require(script.Parent.Parent.Components.Sparkle)
 local State = require(script.Parent.Parent.Parent.State)
+local StationPanel = require(script.Parent.StationPanel)
+local Ticker = require(script.Parent.Parent.Ticker)
 local Tabs = require(script.Parent.Parent.Components.Tabs)
 local Theme = require(script.Parent.Parent.Theme)
 local Timings = require(ReplicatedStorage.Shared.Config.Timings)
@@ -50,7 +52,7 @@ local PRODUCTS = "Products"
 
 local PASS_ORDER: { string } = { "TipsX2", "AutoChef", "ExtraStation", "VIPBooth" }
 local PRODUCT_ORDER: { string } =
-	{ "TipPotion", "InstantRestock", "RushHourNow", "CoinsSmall", "CoinsMedium", "CoinsLarge" }
+	{ "TipPotion", "AdTipBoost", "InstantRestock", "RushHourNow", "CoinsSmall", "CoinsMedium", "CoinsLarge" }
 
 local UPGRADE_ICON: { [string]: string } = {
 	GrillSpeed = "Burger+Bolt",
@@ -71,6 +73,7 @@ local PASS_ICON: { [string]: string } = {
 }
 local PRODUCT_ICON: { [string]: string } = {
 	TipPotion = "Potion",
+	AdTipBoost = "Potion",
 	InstantRestock = "Crate",
 	RushHourNow = "Clock+Flame",
 	CoinsSmall = "Coin",
@@ -386,20 +389,44 @@ local function buildPurchases(
 	end
 end
 
+-- Why the rewarded ad can't be offered right now (nil = it can). Ads must never interrupt service:
+-- not during Rush Hour, not while cooking (a station panel open, or a cook this player started still
+-- in progress) and not while carrying a dish.
+local BUSY_PHASES: { [Types.StationPhase]: boolean } =
+	{ Cooking = true, NeedsFlip = true, Finishing = true, Ready = true }
+
+local function adBlockedReason(now: number): string?
+	local rh = State.rushHour
+	if rh and rh.active and (rh.endsAt == nil or now < rh.endsAt) then
+		return "Not during Rush Hour"
+	end
+	if State.held then
+		return "Serve your dish first"
+	end
+	if StationPanel.isAnyOpen() then
+		return "Finish cooking first"
+	end
+	local me = Players.LocalPlayer.UserId
+	for _, st in State.stations do
+		if st.cookerUserId == me and BUSY_PHASES[st.phase] then
+			return "Finish cooking first"
+		end
+	end
+	return nil
+end
+
+-- The opt-in rewarded ad. Its reward is the AdTipBoost developer product, which is also sold as a
+-- normal card in this tab; the copy states the reward before the ad plays.
 local function buildAd(parent: Frame)
 	local adKey: Types.ProductKey = "AdTipBoost"
 	local adBoost: Types.BoostKey = "AdTipBoost"
 	local boost = Products.Products[adKey]
 	local pct = math.floor((Products.BoostTipPct[adBoost] or 0) * 100 + 0.5)
 	local minutes = math.floor((boost.boostSeconds or 0) / 60 + 0.5)
-	local row = itemCard(
-		parent,
-		1,
-		"Ad",
-		C.AccentLight,
-		"Free Tip Boost",
-		`Watch a short video for +{pct}% tips, {minutes} min`
-	)
+	local reward = `+{pct}% tips for {minutes} min`
+	local offer = `Watch a short ad: {reward}`
+	local row = itemCard(parent, 1, "Ad", C.AccentLight, "Free Tip Boost", offer)
+	row.desc.RichText = true
 	row.card:SetColor(C.AccentLight)
 	if row.card.stroke then
 		row.card.stroke.Color = C.Accent
@@ -407,22 +434,47 @@ local function buildAd(parent: Frame)
 	end
 	local ad: Button.Button
 	local cooling = false
+	local blocked: string? = nil
+	local shown: string? = "init"
+	local function apply()
+		local reason = if cooling then "cooldown" else blocked
+		if reason == shown then
+			return
+		end
+		shown = reason
+		ad:SetEnabled(reason == nil)
+		ad:SetText(if cooling then "Wait" elseif blocked then "Busy" else "Watch")
+		if blocked and not cooling then
+			row.desc.Text = `{reward}\n<font color="#{C.Danger:ToHex()}">{blocked}</font>`
+		else
+			row.desc.Text = offer
+		end
+	end
 	ad = priceButton(row, "accent", function()
-		if cooling then
+		if cooling or adBlockedReason(State.now()) ~= nil then
 			return
 		end
 		cooling = true
-		ad:SetEnabled(false)
-		ad:SetText("Wait")
+		apply()
 		Net.event("RequestRewardedAd"):FireServer() -- explicit opt-in tap only
 		task.delay(Timings.Ads.CooldownSeconds, function()
 			cooling = false
-			ad:SetEnabled(true)
-			ad:SetText("Watch")
+			apply()
 		end)
 	end)
-	ad:SetText("Watch")
 	ad:SetIcon("Ad")
+	local since = math.huge
+	Ticker.add(function(now, dt)
+		since += dt
+		if since < U.ClockSeconds then
+			return
+		end
+		since = 0
+		blocked = adBlockedReason(now)
+		apply()
+	end)
+	blocked = adBlockedReason(State.now())
+	apply()
 end
 
 function ShopPanel.new(): Shop

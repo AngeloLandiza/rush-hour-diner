@@ -43,6 +43,11 @@ local StationPanel = {
 
 local openInteract: Instance? = nil
 
+-- True while any station minigame panel is open.
+function StationPanel.isAnyOpen(): boolean
+	return openInteract ~= nil
+end
+
 -- The Interact part of the station whose panel is open (nil when closed).
 function StationPanel.currentInteract(): Instance?
 	return openInteract
@@ -459,6 +464,10 @@ function StationPanel.new(): StationPanel
 				self:Close()
 			end
 		end
+	end)
+	-- Opening any modal (shop, crew, ...) closes the minigame so it never sits on top of it.
+	Panel.onAnyOpen(function()
+		self:Close()
 	end)
 	return self
 end
