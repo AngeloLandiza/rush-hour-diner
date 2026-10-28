@@ -38,6 +38,10 @@ Create each item in the Creator Hub (open the experience, then Monetization: Pas
 
 ---
 
+### Required experience settings
+- **Max Players: 6.** Each server has 6 plots, one per player. A 7th player would get no plot. Set this in Creator Hub → Places → Server Size.
+- **Avatar: R15 only.** Set this in Creator Hub → Avatar. The place file sets `GameSettingsAvatar = R15`, but the universe setting is what's enforced.
+
 ## 2. Game titles
 
 Each title is 50 characters or fewer.

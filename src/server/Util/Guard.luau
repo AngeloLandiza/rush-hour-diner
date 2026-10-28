@@ -93,7 +93,8 @@ end
 -- The handler still validates every field and ownership itself.
 function Guard.onEvent(name: string, handler: (player: Player, payload: any) -> ())
 	Net.event(name).OnServerEvent:Connect(function(player: Player, payload: any, ...: any)
-		if select("#", ...) > 0 or not Guard.isPayload(payload) or not Guard.allow(player, name) then
+		-- Rate limit first so oversized/spammed payloads are dropped before being walked.
+		if not Guard.allow(player, name) or select("#", ...) > 0 or not Guard.isPayload(payload) then
 			return
 		end
 		local ok, err = pcall(function()
@@ -108,7 +109,8 @@ end
 -- Bind a RemoteFunction. Returns nil to the client when rate limited, malformed or on error.
 function Guard.onInvoke(name: string, handler: (player: Player, payload: any) -> any)
 	Net.func(name).OnServerInvoke = function(player: Player, payload: any, ...: any): any
-		if select("#", ...) > 0 or not Guard.isPayload(payload) or not Guard.allow(player, name) then
+		-- Rate limit first so oversized/spammed payloads are dropped before being walked.
+		if not Guard.allow(player, name) or select("#", ...) > 0 or not Guard.isPayload(payload) then
 			return nil
 		end
 		local ok, result = pcall(handler, player, payload)
