@@ -82,3 +82,30 @@
 - Audio and music IDs are still 0. They need the asset upload and licensed music IDs.
 - Product and pass IDs are still placeholders.
 - Nothing has been playtested in Studio yet. That's Wave 2.
+
+## Wave 2: Integration, balance and launch kit (2026-10-28)
+
+### Integration (F, static review; no Studio access)
+- **Glue fixes:**
+  - `GetSnapshot` waits for the profile
+  - the R15 check covers players already in the server
+  - PropBuilder now boots before MapBuilder
+- **Fixes routed to owners:**
+  - `WaitForData` returned nil before loading started, so a player could end up with no plot (critical, A)
+  - the Serve prompt was hidden by the station prompt (now AlwaysShow on F/ButtonY) (C)
+  - a crew member's plot id was wrong on the client (D)
+  - serve stats and the legendary SFX fired twice (C)
+  - `DebugAllPasses` didn't work with placeholder ids (A)
+  - the station panel stayed open beyond the server's interact range (D)
+  - minor HUD, tutorial and crew-broadcast fixes
+- The onboarding analytics funnel is logged from events in AnalyticsService.
+- ProximityPrompt key and exclusivity conventions were added to WorldSchema.
+
+### Balance (G)
+- Retuned costs, offline rate, streak rewards and the large coin pack.
+- All 13 upgrades take 7h27m free and 4h56m with the pass (66%).
+- The longest wait is 24% of progression.
+- Details are in `docs/ECONOMY.md`.
+
+### Launch kit (H)
+- `docs/LAUNCH.md` covers the Creator Hub product table, titles, descriptions, icon, thumbnails, 10 Shorts scripts and maturity guidance.
