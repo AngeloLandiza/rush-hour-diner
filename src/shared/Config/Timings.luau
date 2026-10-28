@@ -9,8 +9,8 @@ local Timings = {
 	},
 
 	Seats = {
-		Base = 2,
-		Max = 6, -- Base + Seating upgrade levels (VIP booth is cosmetic and adds no seat)
+		Base = 3,
+		Max = 12, -- counter stools first, then tables; Base + Seating upgrade seats (VIP booth adds none)
 	},
 
 	Customers = {

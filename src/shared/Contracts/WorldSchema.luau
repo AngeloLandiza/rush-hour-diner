@@ -18,6 +18,7 @@
 --             FX                 Attachment for steam/sizzle/fire emitters (find with FindFirstChild(name, true))
 --       Seats/
 --         Seat_<k>  (Part, attr SeatIndex)  k = 1..MaxSeats; Seat attachment "Sit" faces the table
+--           Approach             Attachment on a clear aisle: customers walk Door → Approach → Sit
 --       Shell/                   walls/roof/decor props, rebuilt by MapBuilder.ApplyDecor
 --   Customers/
 --     Customer_<id> (Model, attrs CustomerId, PlotId, Kind, LegendaryId?)  "Head" exists (R15)
@@ -50,6 +51,7 @@ local WorldSchema = {
 		Interact = "Interact",
 		FXAttachment = "FX",
 		SitAttachment = "Sit",
+		SeatApproach = "Approach",
 	},
 	Attributes = {
 		PlotId = "PlotId",
