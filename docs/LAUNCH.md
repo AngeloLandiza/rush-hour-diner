@@ -27,12 +27,12 @@ Create each item in the Creator Hub (open the experience, then Monetization: Pas
 | `Products.CoinsSmall` | Pile of Coins | 500 coins to spend on your diner. | 25 |
 | `Products.CoinsMedium` | Bag of Coins | 2,500 coins to spend on your diner. | 99 |
 | `Products.CoinsLarge` | Vault of Coins | 11,000 coins to spend on your diner. | 399 |
-| `Products.AdTipBoost` | Ad Tip Boost | +25% tips for 10 minutes. (rewarded-ad reward, never sold in the shop) | 1 |
+| `Products.AdTipBoost` | Small Tip Boost | +25% tips for 10 minutes. Also free by watching an optional ad. | 9 |
 
 **Notes**
 
 - **Coin packs** have empty descriptions in the config. Creator Hub may require one, so use the suggested text above and add it to `Products.luau`.
-- **`Products.AdTipBoost` is not a store item.** It is only the reward for an opt-in rewarded video ad, granted through AdService. Roblox requires dev products to cost more than 0, so it uses the 1 R$ minimum. It never appears in the shop. Do not promote it. Rewarded ads also need your account to be eligible (Creator Hub → Monetization → Ads).
+- **`Products.AdTipBoost` is the rewarded-ad reward.** Roblox requires it to be a non-random product that is also sold in the shop and worth about 3–10 Robux. It is listed at 9 R$, and the opt-in ad grants it for free. The ad button is disabled during Rush Hour, cooking or carrying.
 - **Name and description limits** are set by Creator Hub. If a field rejects the text, shorten it and keep the meaning.
 - After creating the items, confirm that each `id` in `Products.luau` is a real non-zero ID and that the prices match the table.
 
