@@ -8,6 +8,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 Net.setupServer()
 
 local Guard = require(script.Util.Guard)
+local Timings = require(ReplicatedStorage.Shared.Config.Timings)
 local Services = script.Services
 local World = script.World
 
@@ -51,7 +52,10 @@ for _, entry in BOOT_ORDER do
 end
 
 -- Snapshot for late-joining clients (composed from each service's public API).
+-- Waits (bounded by Timings.Data.DataWaitTimeoutSeconds) for the profile so a fresh joiner's snapshot
+-- carries `data`; otherwise the client would apply `data = nil` over the first DataSync it already got.
 Guard.onInvoke("GetSnapshot", function(player: Player)
+	DataService.WaitForData(player)
 	return {
 		data = DataService.GetView(player),
 		plots = PlotService.GetAllPlotInfo(),
@@ -76,11 +80,24 @@ for _, entry in BOOT_ORDER do
 end
 
 -- Hard constraint: R15 avatars only (StarterPlayer.GameSettingsAvatar = R15 in default.project.json).
-Players.PlayerAdded:Connect(function(player)
+local function checkRig(player: Player, character: Model)
+	local humanoid = character:WaitForChild("Humanoid", Timings.Plots.CharacterWaitSeconds)
+	if humanoid and humanoid:IsA("Humanoid") and humanoid.RigType ~= Enum.HumanoidRigType.R15 then
+		warn(`[Boot] Non-R15 character for {player.UserId}; check universe Avatar settings`)
+	end
+end
+
+local function watchRig(player: Player)
 	player.CharacterAdded:Connect(function(character)
-		local humanoid = character:WaitForChild("Humanoid", 10)
-		if humanoid and humanoid:IsA("Humanoid") and humanoid.RigType ~= Enum.HumanoidRigType.R15 then
-			warn(`[Boot] Non-R15 character for {player.UserId}; check universe Avatar settings`)
-		end
+		checkRig(player, character)
 	end)
-end)
+	local character = player.Character
+	if character then
+		task.spawn(checkRig, player, character)
+	end
+end
+
+Players.PlayerAdded:Connect(watchRig)
+for _, player in Players:GetPlayers() do
+	watchRig(player)
+end
