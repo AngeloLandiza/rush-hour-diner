@@ -4,6 +4,8 @@ local Timings = {
 	Plots = {
 		Count = 6,
 		MaxCrew = 3, -- crew members per plot, excluding owner (4 players total)
+		SpawnLiftStuds = 3, -- characters are placed this high above Spawn
+		CharacterWaitSeconds = 10,
 	},
 
 	Seats = {
@@ -18,6 +20,15 @@ local Timings = {
 		EatSeconds = 4,
 		FirstCustomerDelaySeconds = 3, -- after plot claim, so a new player cooks within 60s
 		MaxQueuedPerPlot = 2, -- customers waiting for a free seat
+		LoopSeconds = 0.5, -- central spawn / bot loop period
+		WaitPollSeconds = 0.25, -- patience check period for a seated customer
+		SpawnLiftStuds = 3,
+		Walk = {
+			ArriveDistance = 4, -- horizontal studs that count as "reached"
+			TimeoutFactor = 1.5, -- allowed time = straight-line time × this
+			TimeoutSlackSeconds = 2,
+			ReissueSeconds = 1, -- re-issue MoveTo this often
+		},
 	},
 
 	RushHour = {
@@ -25,6 +36,7 @@ local Timings = {
 		OffsetSeconds = 0,
 		DurationSeconds = 4 * 60,
 		SpawnMultiplier = 3,
+		PollSeconds = 1,
 	},
 
 	MenuDrop = {
@@ -34,6 +46,8 @@ local Timings = {
 
 	AutoServer = {
 		DeliverSeconds = 3, -- bot travel time per delivery
+		LiftStuds = 2,
+		StandOffStuds = 3, -- bot stops this far short of the customer
 	},
 
 	AutoChef = {
@@ -42,6 +56,9 @@ local Timings = {
 
 	Station = {
 		InteractRange = 12, -- studs between character root and station Interact part
+		TickSeconds = 0.1, -- cook state machine tick (~10 Hz)
+		CharacterWaitSeconds = 5,
+		HeldDishOffset = { X = 0, Y = -0.5, Z = -0.8 }, -- grip offset from RightHand (studs)
 	},
 
 	Serve = {
@@ -66,6 +83,7 @@ local Timings = {
 		SaveConfirmTimeoutSeconds = 20,
 		DataWaitTimeoutSeconds = 60,
 		ReceiptDataWaitSeconds = 30,
+		LoadWaitSeconds = 60, -- PlotService waits this long for a profile before claiming
 		OwnershipRetryAttempts = 3,
 		OwnershipRetryDelaySeconds = 2,
 	},

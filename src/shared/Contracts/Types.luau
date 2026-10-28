@@ -246,6 +246,7 @@ export type LegendaryAnnouncement = {
 	ownerName: string,
 	servedByName: string?, -- nil when announcing arrival, set when served
 	tip: number?,
+	text: string, -- banner text: config announcement with {owner} replaced
 }
 
 export type LeaderboardEntry = { userId: number, name: string, value: number }
