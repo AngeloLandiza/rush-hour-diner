@@ -304,7 +304,7 @@ local function handleJoinCrew(player: Player, payload: any)
 		return
 	end
 	local okFriends, friends = pcall(function()
-		return player:IsFriendsWith(ownerUserId)
+		return player:IsFriendsWithAsync(ownerUserId)
 	end)
 	if not okFriends or friends ~= true then
 		return
