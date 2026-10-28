@@ -312,6 +312,27 @@ function StationPanel.new(): StationPanel
 		end
 	end
 
+	-- Belt and braces: the character can't enter the Jumping state while the panel is open.
+	local jumpLocked: Humanoid? = nil
+	local function allowJump(allow: boolean)
+		if allow then
+			local h = jumpLocked
+			jumpLocked = nil
+			if h and h.Parent then
+				h:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+			end
+			return
+		end
+		local character = Players.LocalPlayer.Character
+		local h = character and character:FindFirstChildOfClass("Humanoid")
+		if h and h ~= jumpLocked then
+			allowJump(true)
+			h.Jump = false
+			h:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+			jumpLocked = h
+		end
+	end
+
 	self = {
 		IsOpenFor = function(_, p: number, s: number): boolean
 			return open and plotId == p and slot == s
@@ -323,6 +344,7 @@ function StationPanel.new(): StationPanel
 			open = false
 			openInteract = nil
 			InputController.Unbind("RHD_StationAct")
+			allowJump(true)
 			StationPanel.OpenChanged:Fire(false)
 			Tween.popOut(frame, function()
 				if not open then
@@ -340,12 +362,14 @@ function StationPanel.new(): StationPanel
 			lastIcon = nil
 			frame.Visible = true
 			Tween.popIn(frame)
-			InputController.Bind("RHD_StationAct", Theme.Keys.Primary, function(pressed)
+			-- Sunk above the default controls so Space / ButtonA never also jump.
+			InputController.BindExclusive("RHD_StationAct", Theme.Keys.Primary, function(pressed)
 				local a: Types.CookAction? = currentAction
 				if pressed and a then
 					send(a)
 				end
 			end)
+			allowJump(false)
 			if not wasOpen then
 				StationPanel.OpenChanged:Fire(true)
 			end

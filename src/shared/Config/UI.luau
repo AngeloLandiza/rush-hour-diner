@@ -233,6 +233,11 @@ local UI = {
 		CounterClearance = 1.5, -- the camera is lifted to this height above the counter top
 	},
 
+	-- Input routing.
+	Input = {
+		ExclusivePriorityOffset = 1, -- exclusive binds sit this far above ContextActionPriority.High
+	},
+
 	-- Loading skeletons (shown until the first snapshot / data arrives).
 	Skeleton = {
 		Clock = "--:--",

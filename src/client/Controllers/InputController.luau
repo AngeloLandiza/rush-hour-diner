@@ -5,6 +5,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
 
 local Signal = require(script.Parent.Parent.Signal)
+local Theme = require(script.Parent.Parent.UI.Theme)
 
 export type Mode = string -- "Touch" | "Keyboard" | "Gamepad"
 
@@ -34,6 +35,20 @@ function InputController.Bind(id: string, keys: { Enum.KeyCode }, handler: (pres
 		end
 		return Enum.ContextActionResult.Pass
 	end, false, table.unpack(keys))
+end
+
+-- Bind keys/buttons ABOVE the default character controls and sink them, so they never reach the
+-- PlayerModule's actions (e.g. Space / ButtonA no longer jump while a station panel is open).
+-- Same handler semantics as Bind: handler(true) on Begin, handler(false) on End.
+function InputController.BindExclusive(id: string, keys: { Enum.KeyCode }, handler: (pressed: boolean) -> ())
+	ContextActionService:BindActionAtPriority(id, function(_, state, _)
+		if state == Enum.UserInputState.Begin then
+			handler(true)
+		elseif state == Enum.UserInputState.End then
+			handler(false)
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.ContextActionPriority.High.Value + Theme.Input.ExclusivePriorityOffset, table.unpack(keys))
 end
 
 function InputController.Unbind(id: string)
