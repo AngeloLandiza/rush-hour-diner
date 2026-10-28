@@ -76,6 +76,7 @@ local WorldSchema = {
 	Tags = {
 		StationInteract = "StationInteract", -- Interact parts
 		CustomerModel = "Customer",
+		RushNeon = "RushNeon", -- neon signs/bulbs that LightingDirector lights up during Rush Hour
 	},
 }
 

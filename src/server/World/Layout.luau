@@ -8,12 +8,19 @@ local Layout = {
 	StreetThickness = 0.2,
 	SidewalkDepth = 8,
 	SidewalkHeight = 0.5,
-	GroundSize = Vector3.new(340, 1, 230),
+	GroundSize = Vector3.new(1400, 1, 1000),
 	CrosswalkX = { -35, 35 },
 	CrosswalkStripes = 6,
 	CenterDashCount = 14,
 	LampX = { -105, -35, 35, 105 },
 	SpawnPadSize = Vector3.new(14, 1, 14),
+	SidewalkSeamSpacing = 24,
+	TreeX = { -35, 35 }, -- the walkways between plots
+	TreeZ = { 27, 48 }, -- distance from the street center
+	BenchX = { -52, -18, 18, 52 },
+	BackdropZ = 92, -- tree line and backdrop behind the plots (distance from the street center)
+	BackdropX = { -140, -70, 0, 70, 140 },
+	EndBuildingX = 185, -- storefront blocks closing the street ends
 
 	-- Plots
 	PlotSize = Vector3.new(60, 1, 50),
@@ -37,6 +44,7 @@ local Layout = {
 	SignPos = Vector3.new(20, 6.5, 17),
 	SignSize = Vector3.new(18, 5, 0.8),
 	VIPPos = Vector3.new(-20, 0, 14),
+	LawnStartZ = 12, -- front lawn from here to the street edge of the lot
 
 	-- Shell
 	WallX = 29.5,

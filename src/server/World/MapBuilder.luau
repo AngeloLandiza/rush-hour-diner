@@ -81,70 +81,128 @@ end
 
 -- ── Street ───────────────────────────────────────────────────────────────────
 
-local function buildLamp(parent: Instance, x: number, z: number, facing: number)
+local function soft(part: BasePart): BasePart
+	Build.Soft(part)
+	return part
+end
+
+-- Retro street lamp: ink pole with a mustard collar, a warm glass globe and a cap.
+local function buildLamp(parent: Instance, x: number, z: number)
+	local y0 = Layout.SidewalkHeight
+	local base = CFrame.new(x, y0, z)
+	Build.Cylinder(parent, "LampBase", 1.5, 1, base * CFrame.new(0, 0.5, 0), C.Ink)
+	Build.Cylinder(parent, "LampPole", 0.5, 9, base * CFrame.new(0, 5.5, 0), C.Ink)
+	Build.Cylinder(parent, "LampCollar", 1, 0.4, base * CFrame.new(0, 9.9, 0), C.Mustard)
+	local globe =
+		Build.Ball(parent, "LampGlobe", Vector3.new(1.9, 2.2, 1.9), base * CFrame.new(0, 11.1, 0), C.Lamp, NEON)
+	globe.CastShadow = false
+	Build.Cylinder(parent, "LampCap", 1.1, 0.4, base * CFrame.new(0, 12.3, 0), C.Ink)
+	Build.Light(globe, C.Lamp, 24, 1.1)
+end
+
+-- Round-canopy tree: trunk plus three overlapping leaf balls.
+local function buildTree(parent: Instance, x: number, z: number, scale: number)
 	local base = CFrame.new(x, 0, z)
-	Build.Cylinder(parent, "LampBase", 1.6, 0.8, base * CFrame.new(0, Layout.SidewalkHeight + 0.4, 0), C.Ink)
-	Build.Cylinder(parent, "LampPole", 0.7, 10, base * CFrame.new(0, Layout.SidewalkHeight + 5, 0), C.Ink)
+	Build.Cylinder(parent, "Trunk", 1.1 * scale, 5 * scale, base * CFrame.new(0, 2.5 * scale, 0), C.WoodDark)
+	Build.Ball(parent, "Canopy", Vector3.new(7, 6, 7) * scale, base * CFrame.new(0, 6.5 * scale, 0), C.Leaf)
+	Build.Ball(
+		parent,
+		"Canopy",
+		Vector3.new(4.6, 4.2, 4.6) * scale,
+		base * CFrame.new(1.6 * scale, 8.4 * scale, 0.8 * scale),
+		C.Leaf
+	)
+	if scale <= 1 then -- backdrop trees (scaled up, seen from afar) skip the third ball
+		Build.Ball(
+			parent,
+			"Canopy",
+			Vector3.new(4, 3.6, 4) * scale,
+			base * CFrame.new(-1.8 * scale, 7.8 * scale, -1 * scale),
+			C.LeafDark
+		)
+	end
+end
+
+-- Sidewalk bench facing the street (+Z local).
+local function buildBench(parent: Instance, cf: CFrame)
+	Build.Part(parent, "BenchSeat", Vector3.new(5, 0.35, 1.5), cf * CFrame.new(0, 1.6, 0), C.Wood)
 	Build.Part(
 		parent,
-		"LampArm",
-		Vector3.new(0.5, 0.5, 3),
-		base * CFrame.new(0, Layout.SidewalkHeight + 10, facing * 1.5),
-		C.Ink
+		"BenchBack",
+		Vector3.new(5, 1.2, 0.3),
+		cf * CFrame.new(0, 2.6, -0.75) * CFrame.Angles(-0.15, 0, 0),
+		C.Wood
 	)
-	local bulb = Build.Ball(
-		parent,
-		"LampBulb",
-		Vector3.new(1.8, 1.8, 1.8),
-		base * CFrame.new(0, Layout.SidewalkHeight + 9.6, facing * 3),
-		C.Mustard,
-		NEON
-	)
-	local light = Instance.new("PointLight")
-	light.Color = C.Mustard
-	light.Range = 26
-	light.Brightness = 1.5
-	light.Parent = bulb
+	for _, side in { -1, 1 } do
+		Build.Part(parent, "BenchLeg", Vector3.new(0.35, 1.5, 1.4), cf * CFrame.new(side * 2.1, 0.75, 0), C.Ink)
+	end
+end
+
+-- A simple two-story storefront block used to close off the street ends and the backdrop.
+local function buildBlock(parent: Instance, cf: CFrame, w: number, h: number, wall: Color3, trim: Color3)
+	Build.Part(parent, "Block", Vector3.new(w, h, 14), cf * CFrame.new(0, h / 2, 0), wall)
+	Build.Part(parent, "BlockCap", Vector3.new(w + 1, 0.8, 15), cf * CFrame.new(0, h + 0.4, 0), C.CreamLight)
+	Build.Part(parent, "BlockBand", Vector3.new(w + 0.2, 0.6, 14.2), cf * CFrame.new(0, h * 0.45, 0), trim)
+	for _, row in { 0.28, 0.72 } do
+		local win = Build.Part(
+			parent,
+			"BlockWindows",
+			Vector3.new(w - 4, h * 0.18, 0.3),
+			cf * CFrame.new(0, h * row, 7),
+			C.MintPale,
+			Build.Glass
+		)
+		win.Transparency = 0.2
+	end
 end
 
 local function buildStreet(map: Folder)
 	local half = Layout.StreetWidth / 2
-	Build.Part(map, "Ground", Layout.GroundSize, CFrame.new(0, -0.5, 0), C.Mint)
-	Build.Part(
-		map,
-		"Street",
-		Vector3.new(Layout.StreetLength, Layout.StreetThickness, Layout.StreetWidth),
-		CFrame.new(0, Layout.StreetThickness / 2, 0),
-		C.Ink
-	)
+	local walk = Layout.SidewalkDepth
+	local len = Layout.StreetLength
+	local top = Layout.StreetThickness
+	Build.Part(map, "Ground", Layout.GroundSize, CFrame.new(0, -0.5, 0), C.Grass)
+	Build.Part(map, "Street", Vector3.new(len, top, Layout.StreetWidth), CFrame.new(0, top / 2, 0), C.Asphalt)
 	for _, side in { -1, 1 } do
-		local z = side * (half + Layout.SidewalkDepth / 2)
+		Build.Part(
+			map,
+			"Gutter",
+			Vector3.new(len, 0.04, 1.2),
+			CFrame.new(0, top + 0.02, side * (half - 0.6)),
+			C.AsphaltDark
+		)
+		local z = side * (half + walk / 2)
 		Build.Part(
 			map,
 			"Sidewalk",
-			Vector3.new(Layout.StreetLength, Layout.SidewalkHeight, Layout.SidewalkDepth),
+			Vector3.new(len, Layout.SidewalkHeight, walk),
 			CFrame.new(0, Layout.SidewalkHeight / 2, z),
-			C.Cream
+			C.Concrete
 		)
 		Build.Part(
 			map,
 			"Curb",
-			Vector3.new(Layout.StreetLength, Layout.SidewalkHeight, 0.6),
-			CFrame.new(0, Layout.SidewalkHeight / 2 + 0.02, side * (half + 0.3)),
-			C.CreamShade
+			Vector3.new(len, Layout.SidewalkHeight + 0.05, 0.8),
+			CFrame.new(0, (Layout.SidewalkHeight + 0.05) / 2, side * (half + 0.4)),
+			C.CreamLight
 		)
+		local seams = math.floor(len / Layout.SidewalkSeamSpacing)
+		for i = 1, seams - 1 do
+			local x = -len / 2 + i * Layout.SidewalkSeamSpacing
+			Build.Part(
+				map,
+				"Seam",
+				Vector3.new(0.25, 0.04, walk - 0.8),
+				CFrame.new(x, Layout.SidewalkHeight + 0.02, z + side * 0.4),
+				C.ConcreteDark
+			)
+		end
 	end
 	-- Center dashes
-	local dashSpacing = Layout.StreetLength / Layout.CenterDashCount
+	local dashSpacing = len / Layout.CenterDashCount
 	for i = 1, Layout.CenterDashCount do
 		local x = (i - (Layout.CenterDashCount + 1) / 2) * dashSpacing
-		Build.Part(
-			map,
-			"Dash",
-			Vector3.new(dashSpacing * 0.45, 0.06, 0.7),
-			CFrame.new(x, Layout.StreetThickness + 0.03, 0),
-			C.Mustard
-		)
+		Build.Part(map, "Dash", Vector3.new(dashSpacing * 0.45, 0.06, 0.6), CFrame.new(x, top + 0.03, 0), C.Mustard)
 	end
 	-- Crosswalks
 	for _, cx in Layout.CrosswalkX do
@@ -154,40 +212,53 @@ local function buildStreet(map: Folder)
 				map,
 				"CrosswalkStripe",
 				Vector3.new(1, 0.06, Layout.StreetWidth - 3),
-				CFrame.new(x, Layout.StreetThickness + 0.03, 0),
-				C.Cream
+				CFrame.new(x, top + 0.03, 0),
+				C.CreamLight
 			)
 		end
 	end
-	-- Lamp posts on both sidewalks
+	-- Lamps on both sidewalks, benches facing the street, trees in the walkways between plots
 	for _, x in Layout.LampX do
-		buildLamp(map, x, -(half + 1.2), 1)
-		buildLamp(map, x, half + 1.2, -1)
+		buildLamp(map, x, -(half + 1.4))
+		buildLamp(map, x, half + 1.4)
 	end
-	-- Bushes in the gaps behind the sidewalks
-	for _, x in Layout.CrosswalkX do
-		for _, side in { -1, 1 } do
-			Build.Ball(
-				map,
-				"Bush",
-				Vector3.new(6, 5, 6),
-				CFrame.new(x, 2, side * (half + Layout.SidewalkDepth + 6)),
-				C.MintDeep
-			)
+	for _, x in Layout.BenchX do
+		buildBench(map, CFrame.new(x, Layout.SidewalkHeight, -(half + walk - 1.5)))
+		buildBench(map, CFrame.new(x, Layout.SidewalkHeight, half + walk - 1.5) * CFrame.Angles(0, math.pi, 0))
+	end
+	for _, x in Layout.TreeX do
+		for _, z in Layout.TreeZ do
+			buildTree(map, x, z, 1)
+			buildTree(map, x, -z, 1)
 		end
 	end
-	-- Welcome spawn pad for players before they get a plot
+	-- Backdrop: a tree line behind the plots and storefront blocks at both street ends
+	for i, x in Layout.BackdropX do
+		for _, side in { -1, 1 } do
+			buildTree(map, x + (i % 2) * 8, side * (Layout.BackdropZ + (i % 3) * 4), 1.5)
+		end
+	end
+	local blockColors = { C.Linen, C.Terracotta, C.MintPale, C.MustardPale }
+	for i, z in { -36, -16, 16, 36 } do
+		for _, side in { -1, 1 } do
+			local cf = CFrame.new(side * Layout.EndBuildingX, 0, z) * CFrame.Angles(0, -side * math.pi / 2, 0)
+			buildBlock(map, cf, 18, 16 + (i % 2) * 6, blockColors[(i + (side + 1) / 2) % #blockColors + 1], C.Ink)
+		end
+	end
+	-- Welcome spawn pad for players before they get a plot: a round mint plaza in the street.
+	local d = Layout.SpawnPadSize.X
+	soft(Build.Cylinder(map, "SpawnRing", d + 2, 0.3, CFrame.new(0, top + 0.15, 0), C.Mustard))
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "SpawnLocation"
-	spawn.Size = Layout.SpawnPadSize
+	spawn.Shape = Enum.PartType.Cylinder
+	spawn.Size = Vector3.new(0.5, d, d)
 	spawn.Anchored = true
 	spawn.Neutral = true
 	spawn.Duration = 0
-	spawn.Material = NEON
-	spawn.Color = C.NeonPink
+	spawn.Material = Enum.Material.SmoothPlastic
+	spawn.Color = C.MintPale
 	spawn.TopSurface = Enum.SurfaceType.Smooth
-	spawn.CFrame = CFrame.new(0, Layout.StreetThickness + Layout.SpawnPadSize.Y / 2, 0)
-	spawn.Transparency = 0.35
+	spawn.CFrame = CFrame.new(0, top + 0.25, 0) * CFrame.Angles(0, 0, math.pi / 2)
 	spawn.Parent = map
 end
 
@@ -208,27 +279,30 @@ local function accentFor(plotId: number): Color3
 	return accents[(plotId - 1) % #accents + 1]
 end
 
-local function buildSeat(seats: Folder, plotCF: CFrame, plotId: number, k: number)
+-- Chrome diner stool: accent cushion (the Seat part) on a cream piping ring, chrome pole and foot.
+local function buildSeat(seats: Folder, plotCF: CFrame, plotId: number, accent: Color3, k: number)
 	local x = Layout.SeatX[k]
 	local top = F + Layout.SeatHeight
 	local seat = Build.Cylinder(
 		seats,
 		WorldSchema.SeatPrefix .. k,
-		2.6,
-		0.8,
-		plotCF * CFrame.new(x, top - 0.4, Layout.SeatZ),
-		C.Ketchup
+		2.5,
+		0.6,
+		plotCF * CFrame.new(x, top - 0.3, Layout.SeatZ),
+		accent
 	)
 	seat:SetAttribute(A.SeatIndex, k)
 	seat:SetAttribute(A.PlotId, plotId)
+	Build.Cylinder(seat, "Piping", 2.7, 0.18, plotCF * CFrame.new(x, top - 0.62, Layout.SeatZ), C.CreamLight)
 	Build.Cylinder(
 		seat,
 		"Leg",
-		0.6,
-		Layout.SeatHeight - 0.8,
-		plotCF * CFrame.new(x, F + (Layout.SeatHeight - 0.8) / 2, Layout.SeatZ),
-		C.Ink
+		0.45,
+		Layout.SeatHeight - 0.7,
+		plotCF * CFrame.new(x, F + (Layout.SeatHeight - 0.7) / 2, Layout.SeatZ),
+		C.Chrome
 	)
+	Build.Cylinder(seat, "Foot", 1.8, 0.25, plotCF * CFrame.new(x, F + 0.12, Layout.SeatZ), C.SteelDark)
 	local sit = Instance.new("Attachment")
 	sit.Name = P.SitAttachment
 	sit.Parent = seat
@@ -236,15 +310,91 @@ local function buildSeat(seats: Folder, plotCF: CFrame, plotId: number, k: numbe
 	sit.WorldCFrame = plotCF * CFrame.lookAt(Vector3.new(x, top, Layout.SeatZ), Vector3.new(x, top, Layout.SeatZ - 1))
 end
 
+-- The diner counter: cream body with a kick plate, chrome rail and accent band on the customer side,
+-- an overhanging countertop with a chrome edge, a pink under-glow for Rush Hour and condiments.
+local function buildCounter(model: Model, cf: CFrame, accent: Color3): BasePart
+	local size = Layout.CounterSize
+	local counter = Build.Part(model, P.Counter, size, cf * CFrame.new(0, F + size.Y / 2, Layout.CounterZ), C.Cream)
+	local frontZ = Layout.CounterZ + size.Z / 2
+	local function at(x: number, y: number, z: number): CFrame
+		return cf * CFrame.new(x, y, z)
+	end
+	Build.Part(model, "CounterBand", Vector3.new(size.X, 0.7, 0.12), at(0, F + 2.55, frontZ + 0.05), accent)
+	Build.Rod(model, "CounterRail", 0.22, size.X, at(0, F + 1.95, frontZ + 0.1), C.Chrome)
+	local topY = F + size.Y + 0.18
+	Build.Part(
+		model,
+		"CounterTop",
+		Vector3.new(size.X + 0.8, 0.36, size.Z + 1),
+		at(0, topY, Layout.CounterZ + 0.4),
+		C.CreamLight
+	)
+	Build.Rod(model, "CounterEdge", 0.42, size.X + 0.8, at(0, topY, frontZ + 0.9), C.Chrome)
+	local glow = Build.Part(
+		model,
+		"CounterGlow",
+		Vector3.new(size.X - 1, 0.12, 0.12),
+		at(0, topY - 0.32, frontZ + 0.55),
+		C.NeonPink,
+		NEON
+	)
+	Build.RushNeon(glow)
+	for i, x in { -16, -8, 8, 16 } do
+		local y = topY + 0.18
+		Build.Cylinder(model, "Ketchup", 0.42, 1, at(x - 0.35, y + 0.5, Layout.CounterZ + 0.3), C.Ketchup)
+		Build.Cylinder(model, "Mustard", 0.42, 1, at(x + 0.2, y + 0.5, Layout.CounterZ + 0.4), C.Mustard)
+		if i % 2 == 0 then
+			Build.Part(
+				model,
+				"Napkins",
+				Vector3.new(0.9, 0.7, 0.45),
+				at(x + 1.2, y + 0.35, Layout.CounterZ + 0.3),
+				C.Chrome
+			)
+		end
+	end
+	return counter
+end
+
+-- Low hedges along the street edge of the lot (with a gap for the path) and a paved walkway.
+local function buildFrontYard(model: Model, cf: CFrame)
+	local edgeZ = Layout.PlotSize.Z / 2 - 1
+	local pathW = Layout.DoorSize.X + 2
+	local hedgeW = Layout.PlotSize.X / 2 - pathW / 2 - 1
+	for _, side in { -1, 1 } do
+		local x = side * (pathW / 2 + hedgeW / 2 + 0.5)
+		Build.Part(model, "HedgeBox", Vector3.new(hedgeW, 0.9, 1.6), cf * CFrame.new(x, F + 0.45, edgeZ), C.Wood)
+		Build.Part(model, "Hedge", Vector3.new(hedgeW - 0.3, 1.3, 1.3), cf * CFrame.new(x, F + 1.45, edgeZ), C.Leaf)
+	end
+	local lawnZ0 = Layout.LawnStartZ
+	local lawnD = Layout.PlotSize.Z / 2 - lawnZ0
+	Build.Part(
+		model,
+		"Lawn",
+		Vector3.new(Layout.PlotSize.X, 0.04, lawnD),
+		cf * CFrame.new(0, F + 0.02, lawnZ0 + lawnD / 2),
+		C.Grass
+	)
+	local pathLen = Layout.PlotSize.Z / 2 - Layout.WallFrontZ
+	Build.Part(
+		model,
+		"Path",
+		Vector3.new(pathW, 0.08, pathLen),
+		cf * CFrame.new(0, F + 0.04, Layout.WallFrontZ + pathLen / 2),
+		C.Concrete
+	)
+end
+
 local function buildSlot(stationsFolder: Folder, plotCF: CFrame, plotId: number, k: number)
 	local stationId: Types.StationId = Stations.SlotLayout[k] :: any -- Config/Stations widens the literal type
 	local slot = Instance.new("Model")
 	slot.Name = WorldSchema.SlotPrefix .. k
 	local built = PropBuilder.MakeStation(stationId)
+	local root = built.PrimaryPart -- read before reparenting: moving it out clears built.PrimaryPart
 	for _, child in built:GetChildren() do
 		child.Parent = slot
 	end
-	slot.PrimaryPart = built.PrimaryPart
+	slot.PrimaryPart = root
 	built:Destroy()
 	slot:SetAttribute(A.PlotId, plotId)
 	slot:SetAttribute(A.Slot, k)
@@ -260,40 +410,65 @@ local function buildSlot(stationsFolder: Folder, plotCF: CFrame, plotId: number,
 	slot.Parent = stationsFolder
 end
 
+-- Crew sign on two wooden posts: an ink board (the named Sign part) in a rounded accent frame,
+-- with marquee bulbs along the top that light up in Rush Hour.
 local function buildSign(model: Model, plotCF: CFrame, accent: Color3): TextLabel
 	local pos = Layout.SignPos
 	local size = Layout.SignSize
+	local postH = pos.Y + size.Y / 2 - F
 	for _, side in { -1, 1 } do
-		Build.Cylinder(
+		local x = pos.X + side * (size.X / 2 - 2)
+		Build.Part(
 			model,
 			"SignPost",
-			0.8,
-			pos.Y + size.Y / 2 - F,
-			plotCF * CFrame.new(pos.X + side * (size.X / 2 - 1.5), F + (pos.Y + size.Y / 2 - F) / 2, pos.Z),
-			C.Ink
+			Vector3.new(0.8, postH, 0.8),
+			plotCF * CFrame.new(x, F + postH / 2, pos.Z - 0.6),
+			C.WoodDark
 		)
 	end
-	local sign = Build.Part(model, P.Sign, size, plotCF * CFrame.new(pos), C.Ink)
-	Build.Part(
+	local sign = Build.Part(model, P.Sign, size, plotCF * CFrame.new(pos), C.CreamLight)
+	Build.Pill(
 		model,
-		"SignTrim",
-		size + Vector3.new(0.8, 0.8, -0.2),
-		plotCF * CFrame.new(pos + Vector3.new(0, 0, -0.2)),
+		"SignFrame",
+		Vector3.new(size.X + 1.4, size.Y + 0.8, 0.5),
+		plotCF * CFrame.new(pos + Vector3.new(0, 0, -0.35)),
 		accent
 	)
+	Build.Part(
+		model,
+		"SignCap",
+		Vector3.new(size.X - 2, 0.5, 1),
+		plotCF * CFrame.new(pos + Vector3.new(0, size.Y / 2 + 0.55, -0.2)),
+		C.CreamLight
+	)
+	local bulbs = 5
+	for i = 1, bulbs do
+		local x = pos.X + (i - (bulbs + 1) / 2) * ((size.X - 4) / (bulbs - 1))
+		local bulb = Build.Ball(
+			model,
+			"SignBulb",
+			Vector3.new(0.55, 0.55, 0.55),
+			plotCF * CFrame.new(x, pos.Y + size.Y / 2 + 0.95, pos.Z - 0.2),
+			C.Mustard,
+			NEON
+		)
+		Build.RushNeon(bulb, if i == (bulbs + 1) / 2 then 12 else nil, 1.5)
+	end
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = P.SignGui
 	gui.Face = Enum.NormalId.Back -- +Z in plot space, toward the street
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
+	gui.PixelsPerStud = 20
+	gui.LightInfluence = 0
 	local text = Instance.new("TextLabel")
 	text.Name = P.SignText
-	text.Size = UDim2.fromScale(1, 1)
+	text.Size = UDim2.fromScale(0.92, 0.84)
+	text.Position = UDim2.fromScale(0.04, 0.08)
 	text.BackgroundTransparency = 1
 	text.Text = ""
 	text.TextScaled = true
-	text.Font = Enum.Font.GothamBlack
-	text.TextColor3 = C.Cream
+	text.Font = Enum.Font.FredokaOne
+	text.TextColor3 = C.Ink
 	text.Parent = gui
 	gui.Parent = sign
 	return text
@@ -306,34 +481,14 @@ local function buildPlot(plotsFolder: Folder, plotId: number)
 	model.Name = WorldSchema.PlotPrefix .. plotId
 	model:SetAttribute(A.PlotId, plotId)
 
-	local base = Build.Part(model, P.Base, Layout.PlotSize, cf * CFrame.new(0, F - Layout.PlotSize.Y / 2, 0), C.Cream)
+	local base = Build.Part(model, P.Base, Layout.PlotSize, cf * CFrame.new(0, F - Layout.PlotSize.Y / 2, 0), C.Sand)
 	model.PrimaryPart = base
-	-- Accent edge along the street side
-	Build.Part(
-		model,
-		"FrontEdge",
-		Vector3.new(Layout.PlotSize.X, 0.1, 2),
-		cf * CFrame.new(0, F + 0.05, Layout.PlotSize.Z / 2 - 1),
-		accent
-	)
+	buildFrontYard(model, cf)
 
 	Build.Marker(model, P.Spawn, Vector3.new(4, 1, 2.5), cf * CFrame.new(0, F + 0.5, Layout.SpawnZ))
 	Build.Marker(model, P.CustomerSpawn, Vector3.new(4, 1, 4), cf * CFrame.new(0, F + 0.5, Layout.CustomerSpawnZ))
 	Build.Marker(model, P.Door, Layout.DoorSize, cf * CFrame.new(0, F + Layout.DoorSize.Y / 2, Layout.DoorZ))
-	local counter = Build.Part(
-		model,
-		P.Counter,
-		Layout.CounterSize,
-		cf * CFrame.new(0, F + Layout.CounterSize.Y / 2, Layout.CounterZ),
-		C.Cream
-	)
-	Build.Part(
-		model,
-		"CounterTop",
-		Layout.CounterSize + Vector3.new(0.6, -Layout.CounterSize.Y + 0.4, 0.6),
-		counter.CFrame * CFrame.new(0, Layout.CounterSize.Y / 2 + 0.2, 0),
-		accent
-	)
+	buildCounter(model, cf, accent)
 
 	local signText = buildSign(model, cf, accent)
 
@@ -347,7 +502,7 @@ local function buildPlot(plotsFolder: Folder, plotId: number)
 	local seatsFolder = Instance.new("Folder")
 	seatsFolder.Name = P.Seats
 	for k = 1, Timings.Seats.Max do
-		buildSeat(seatsFolder, cf, plotId, k)
+		buildSeat(seatsFolder, cf, plotId, accent, k)
 	end
 	seatsFolder.Parent = model
 
@@ -456,24 +611,21 @@ function MapBuilder.SetVIPBooth(plotId: number, enabled: boolean)
 	booth.Name = "VIPBooth"
 	local o = Layout.VIPPos
 	local cf = state.cf * CFrame.new(o.X, F, o.Z)
-	Build.Part(booth, "Bench", Vector3.new(9, 1.6, 3.4), cf * CFrame.new(0, 0.8, 0), C.NeonPink, NEON)
-	Build.Part(booth, "Back", Vector3.new(9, 3.4, 0.9), cf * CFrame.new(0, 3, -1.8), C.NeonPink, NEON)
-	Build.Part(booth, "Table", Vector3.new(5, 0.4, 2.4), cf * CFrame.new(0, 2.4, 3), C.Cream)
-	Build.Cylinder(booth, "TableLeg", 0.7, 2.2, cf * CFrame.new(0, 1.1, 3), C.Ink)
-	local sign = Build.Part(booth, "VIPSign", Vector3.new(5, 1.8, 0.4), cf * CFrame.new(0, 5.6, -1.8), C.Ink)
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Back
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
-	local t = Instance.new("TextLabel")
-	t.Size = UDim2.fromScale(1, 1)
-	t.BackgroundTransparency = 1
-	t.Text = "VIP"
-	t.TextScaled = true
-	t.Font = Enum.Font.GothamBlack
-	t.TextColor3 = C.NeonPink
-	t.Parent = gui
-	gui.Parent = sign
+	-- A velvet booth on the patio: pink cushions on an ink base, a round table and a neon VIP sign.
+	Build.Part(booth, "Bench", Vector3.new(9, 1, 3.4), cf * CFrame.new(0, 0.5, 0), C.Ink)
+	Build.Part(booth, "Cushion", Vector3.new(8.6, 0.7, 3), cf * CFrame.new(0, 1.35, 0.1), C.NeonPink)
+	Build.Pill(booth, "Back", Vector3.new(9, 3.6, 0.9), cf * CFrame.new(0, 3, -1.8), C.NeonPink)
+	Build.Part(booth, "BackBase", Vector3.new(9.4, 1.6, 1.1), cf * CFrame.new(0, 1.6, -1.8), C.Ink)
+	Build.Cylinder(booth, "Table", 4, 0.35, cf * CFrame.new(0, 2.6, 3.2), C.CreamLight)
+	Build.Cylinder(booth, "TableEdge", 4.2, 0.15, cf * CFrame.new(0, 2.38, 3.2), C.Chrome)
+	Build.Cylinder(booth, "TableLeg", 0.5, 2.3, cf * CFrame.new(0, 1.15, 3.2), C.Chrome)
+	Build.Cylinder(booth, "TableFoot", 2, 0.2, cf * CFrame.new(0, 0.1, 3.2), C.SteelDark)
+	local sign = Build.Pill(booth, "VIPSign", Vector3.new(5, 1.8, 0.4), cf * CFrame.new(0, 6, -1.8), C.Ink)
+	local t = Build.Text(sign, "VIP", C.NeonPink)
+	t.Name = "VIPText"
+	local tube =
+		Build.Part(booth, "VIPNeon", Vector3.new(3.2, 0.15, 0.15), cf * CFrame.new(0, 5.05, -1.55), C.NeonPink, NEON)
+	Build.RushNeon(tube, 10, 1.5)
 	booth.PrimaryPart = booth:FindFirstChild("Bench") :: BasePart
 	booth.Parent = state.model
 end

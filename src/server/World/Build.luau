@@ -1,9 +1,21 @@
 --!strict
 -- Small part-construction helpers shared by MapBuilder, Shells and PropBuilder. Palette colors only.
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Art = require(ReplicatedStorage.Shared.Config.Art)
+
 local Build = {}
 
 local SMOOTH = Enum.Material.SmoothPlastic
 local UPRIGHT = CFrame.Angles(0, 0, math.pi / 2) -- Cylinder parts have their axis on X; stand them up
+local FACING_Z = CFrame.Angles(0, math.pi / 2, 0) -- Cylinder axis along Z (a disc facing +Z)
+local SIGN_PPS = 20
+local SIGN_FONT = Enum.Font.FredokaOne
+
+Build.Glass = Enum.Material.Glass
+Build.WoodMat = Enum.Material.Wood
+Build.Neon = Enum.Material.Neon
 
 local function finish(part: BasePart, name: string, cf: CFrame, color: Color3, material: Enum.Material?)
 	part.Name = name
@@ -13,6 +25,7 @@ local function finish(part: BasePart, name: string, cf: CFrame, color: Color3, m
 	part.Material = material or SMOOTH
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.CastShadow = true
 end
 
 function Build.Part(
@@ -48,6 +61,64 @@ function Build.Cylinder(
 	return part
 end
 
+-- Disc / rod whose axis runs along the CFrame's Z (faces +Z): knobs, portholes, scallops, logs.
+function Build.Disc(
+	parent: Instance,
+	name: string,
+	diameter: number,
+	thickness: number,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material?
+): Part
+	local part = Instance.new("Part")
+	part.Shape = Enum.PartType.Cylinder
+	part.Size = Vector3.new(thickness, diameter, diameter)
+	finish(part, name, cf * FACING_Z, color, material)
+	part.Parent = parent
+	return part
+end
+
+-- Elliptical disc facing +Z (scallops, oval signs): a block with a cylinder SpecialMesh, which, unlike a
+-- Cylinder part, stretches to a non-circular cross-section.
+function Build.Ellipse(
+	parent: Instance,
+	name: string,
+	width: number,
+	height: number,
+	thickness: number,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material?
+): Part
+	local part = Instance.new("Part")
+	part.Size = Vector3.new(thickness, height, width)
+	finish(part, name, cf * FACING_Z, color, material)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Cylinder
+	mesh.Parent = part
+	part.Parent = parent
+	return part
+end
+
+-- Rod along the CFrame's X axis (rails, handles, beams).
+function Build.Rod(
+	parent: Instance,
+	name: string,
+	diameter: number,
+	length: number,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material?
+): Part
+	local part = Instance.new("Part")
+	part.Shape = Enum.PartType.Cylinder
+	part.Size = Vector3.new(length, diameter, diameter)
+	finish(part, name, cf, color, material)
+	part.Parent = parent
+	return part
+end
+
 function Build.Ball(
 	parent: Instance,
 	name: string,
@@ -58,6 +129,21 @@ function Build.Ball(
 ): Part
 	local part = Instance.new("Part")
 	part.Shape = Enum.PartType.Ball
+	part.Size = size
+	finish(part, name, cf, color, material)
+	part.Parent = parent
+	return part
+end
+
+function Build.Wedge(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material?
+): WedgePart
+	local part = Instance.new("WedgePart")
 	part.Size = size
 	finish(part, name, cf, color, material)
 	part.Parent = parent
@@ -79,6 +165,38 @@ function Build.CornerWedge(
 	return part
 end
 
+-- Rounded slab: a box whose two X ends are capped with half-cylinders (pill shape seen from the front).
+-- `size.Y` is the diameter of the caps. Returns the center box. soft = true makes all three parts Soft.
+function Build.Pill(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material?,
+	soft: boolean?
+): Part
+	local r = size.Y / 2
+	local body = Build.Part(parent, name, Vector3.new(size.X - size.Y, size.Y, size.Z), cf, color, material)
+	local parts: { BasePart } = { body }
+	for _, side in { -1, 1 } do
+		local cap = Build.Disc(
+			parent,
+			name .. "Cap",
+			size.Y,
+			size.Z,
+			cf * CFrame.new(side * (size.X / 2 - r), 0, 0),
+			color,
+			material
+		)
+		table.insert(parts, cap)
+	end
+	if soft then
+		Build.SoftAll(parts)
+	end
+	return body
+end
+
 -- Invisible, non-colliding marker (spawns, interaction points).
 function Build.Marker(parent: Instance, name: string, size: Vector3, cf: CFrame): Part
 	local part = Build.Part(parent, name, size, cf, Color3.new(1, 1, 1))
@@ -86,6 +204,7 @@ function Build.Marker(parent: Instance, name: string, size: Vector3, cf: CFrame)
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false
+	part.CastShadow = false
 	return part
 end
 
@@ -94,6 +213,62 @@ function Build.Soft(part: BasePart)
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false
+end
+
+-- Soft for a list of parts; returns the list.
+function Build.SoftAll(parts: { BasePart }): { BasePart }
+	for _, p in parts do
+		Build.Soft(p)
+	end
+	return parts
+end
+
+-- A neon accent that lights up in Rush Hour (LightingDirector toggles Neon ↔ SmoothPlastic and the light).
+-- `lightRange` > 0 adds a shadowless PointLight that only shines in Rush.
+function Build.RushNeon(part: BasePart, lightRange: number?, lightBrightness: number?)
+	part.CastShadow = false
+	if lightRange and lightRange > 0 then
+		local light = Instance.new("PointLight")
+		light.Color = part.Color
+		light.Range = lightRange
+		light.Brightness = 0
+		light.Shadows = false
+		light.Parent = part
+		part:SetAttribute(Art.Attributes.LitBrightness, lightBrightness or 1)
+	end
+	CollectionService:AddTag(part, Art.Tags.RushNeon)
+end
+
+-- Text on one face of a part. Text ignores scene lighting so signs stay readable (and glow at night).
+function Build.Text(part: BasePart, text: string, color: Color3, face: Enum.NormalId?, font: Enum.Font?): TextLabel
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Label"
+	gui.Face = face or Enum.NormalId.Back
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = SIGN_PPS
+	gui.LightInfluence = 0
+	local t = Instance.new("TextLabel")
+	t.Name = "Text"
+	t.Size = UDim2.fromScale(1, 1)
+	t.BackgroundTransparency = 1
+	t.Text = text
+	t.TextScaled = true
+	t.Font = font or SIGN_FONT
+	t.TextColor3 = color
+	t.Parent = gui
+	gui.Parent = part
+	return t
+end
+
+-- A warm shadow-casting light (lamps). Stays on in both presets.
+function Build.Light(part: BasePart, color: Color3, range: number, brightness: number, shadows: boolean?): PointLight
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = range
+	light.Brightness = brightness
+	light.Shadows = shadows == true
+	light.Parent = part
+	return light
 end
 
 -- Welds every part in the model to its PrimaryPart. Children become massless and non-colliding.
