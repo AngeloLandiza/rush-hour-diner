@@ -41,8 +41,8 @@ local Layout = {
 	DoorZ = 6,
 	DoorSize = Vector3.new(8, 7, 1),
 	CustomerSpawnZ = 22,
-	SignPos = Vector3.new(20, 6.5, 17),
-	SignSize = Vector3.new(18, 5, 0.8),
+	SignPos = Vector3.new(21, 4.6, 16),
+	SignSize = Vector3.new(9, 2.8, 0.5),
 	VIPPos = Vector3.new(-20, 0, 14),
 	LawnStartZ = 12, -- front lawn from here to the street edge of the lot
 

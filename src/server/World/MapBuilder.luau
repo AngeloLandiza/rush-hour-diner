@@ -410,67 +410,66 @@ local function buildSlot(stationsFolder: Folder, plotCF: CFrame, plotId: number,
 	slot.Parent = stationsFolder
 end
 
--- Crew sign on two wooden posts: an ink board (the named Sign part) in a rounded accent frame,
--- with marquee bulbs along the top that light up in Rush Hour.
-local function buildSign(model: Model, plotCF: CFrame, accent: Color3): TextLabel
-	local pos = Layout.SignPos
-	local size = Layout.SignSize
-	local postH = pos.Y + size.Y / 2 - F
-	for _, side in { -1, 1 } do
-		local x = pos.X + side * (size.X / 2 - 2)
-		Build.Part(
-			model,
-			"SignPost",
-			Vector3.new(0.8, postH, 0.8),
-			plotCF * CFrame.new(x, F + postH / 2, pos.Z - 0.6),
-			C.WoodDark
-		)
-	end
-	local sign = Build.Part(model, P.Sign, size, plotCF * CFrame.new(pos), C.CreamLight)
-	Build.Pill(
-		model,
-		"SignFrame",
-		Vector3.new(size.X + 1.4, size.Y + 0.8, 0.5),
-		plotCF * CFrame.new(pos + Vector3.new(0, 0, -0.35)),
-		accent
-	)
-	Build.Part(
-		model,
-		"SignCap",
-		Vector3.new(size.X - 2, 0.5, 1),
-		plotCF * CFrame.new(pos + Vector3.new(0, size.Y / 2 + 0.55, -0.2)),
-		C.CreamLight
-	)
-	local bulbs = 5
-	for i = 1, bulbs do
-		local x = pos.X + (i - (bulbs + 1) / 2) * ((size.X - 4) / (bulbs - 1))
-		local bulb = Build.Ball(
-			model,
-			"SignBulb",
-			Vector3.new(0.55, 0.55, 0.55),
-			plotCF * CFrame.new(x, pos.Y + size.Y / 2 + 0.95, pos.Z - 0.2),
-			C.Mustard,
-			NEON
-		)
-		Build.RushNeon(bulb, if i == (bulbs + 1) / 2 then 12 else nil, 1.5)
-	end
+-- Crew sign on two wooden posts, off to the side of the entrance path: an ink board (the named Sign
+-- part) in a rounded accent frame, cream lettering on both faces, marquee bulbs that light in Rush Hour.
+local function addSignGui(sign: BasePart, face: Enum.NormalId): TextLabel
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = P.SignGui
-	gui.Face = Enum.NormalId.Back -- +Z in plot space, toward the street
+	gui.Face = face
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 20
+	gui.PixelsPerStud = 30
 	gui.LightInfluence = 0
 	local text = Instance.new("TextLabel")
 	text.Name = P.SignText
-	text.Size = UDim2.fromScale(0.92, 0.84)
-	text.Position = UDim2.fromScale(0.04, 0.08)
+	text.Size = UDim2.fromScale(0.92, 0.8)
+	text.Position = UDim2.fromScale(0.04, 0.1)
 	text.BackgroundTransparency = 1
-	text.Text = ""
+	text.Text = "Free Plot"
 	text.TextScaled = true
 	text.Font = Enum.Font.FredokaOne
-	text.TextColor3 = C.Ink
+	text.TextColor3 = C.CreamLight
 	text.Parent = gui
 	gui.Parent = sign
+	return text
+end
+
+local function buildSign(model: Model, plotCF: CFrame, accent: Color3): TextLabel
+	local pos = Layout.SignPos
+	local size = Layout.SignSize
+	local postH = pos.Y - size.Y / 2 - F
+	for _, side in { -1, 1 } do
+		local x = pos.X + side * (size.X / 2 - 1)
+		Build.Part(
+			model,
+			"SignPost",
+			Vector3.new(0.6, postH, 0.6),
+			plotCF * CFrame.new(x, F + postH / 2, pos.Z),
+			C.WoodDark
+		)
+	end
+	local sign = Build.Part(model, P.Sign, size, plotCF * CFrame.new(pos), C.Ink)
+	Build.Pill(
+		model,
+		"SignFrame",
+		Vector3.new(size.X + 0.8, size.Y + 0.6, size.Z - 0.2),
+		plotCF * CFrame.new(pos),
+		accent
+	)
+	local bulbs = 3
+	for i = 1, bulbs do
+		local x = pos.X + (i - (bulbs + 1) / 2) * ((size.X - 3) / (bulbs - 1))
+		local bulb = Build.Ball(
+			model,
+			"SignBulb",
+			Vector3.new(0.45, 0.45, 0.45),
+			plotCF * CFrame.new(x, pos.Y + size.Y / 2 + 0.6, pos.Z),
+			C.Mustard,
+			NEON
+		)
+		Build.RushNeon(bulb, if i == (bulbs + 1) / 2 then 10 else nil, 1.5)
+	end
+	local text = addSignGui(sign, Enum.NormalId.Back) -- +Z in plot space, toward the street
+	addSignGui(sign, Enum.NormalId.Front) -- mirrored for the diner side; SetSignText updates both
 	return text
 end
 
@@ -587,6 +586,14 @@ end
 function MapBuilder.SetSignText(plotId: number, text: string)
 	local state = plots[plotId]
 	if state then
+		local sign = state.signText.Parent and state.signText.Parent.Parent
+		if sign then
+			for _, d in sign:GetDescendants() do
+				if d:IsA("TextLabel") and d.Name == P.SignText then
+					d.Text = text
+				end
+			end
+		end
 		state.signText.Text = text
 	end
 end

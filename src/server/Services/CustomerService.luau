@@ -474,6 +474,37 @@ local function walkingCount(plotId: number): number
 	return n
 end
 
+-- Frees one seat for a Legendary by sending away the Regular with no order yet, else the one with the
+-- least patience left. Never bumps a Legendary, a VIP, or a customer mid-serve.
+local function makeRoom(plotId: number, seatCount: number): number?
+	local best: Rec? = nil
+	local bestScore = math.huge
+	local now = serverNow()
+	for _, rec in customers do
+		local d = rec.data
+		if
+			d.plotId == plotId
+			and (d.kind == "Regular" or d.kind == "Hungry")
+			and d.phase ~= "Leaving"
+			and not rec.reserved
+			and not rec.dead
+			and d.seatIndex <= seatCount
+		then
+			local order = d.order
+			local score = if order then Orders.remainingPatience(order, now) else -math.huge
+			if score < bestScore then
+				best, bestScore = rec, score
+			end
+		end
+	end
+	if not best then
+		return nil
+	end
+	local seatIndex = best.data.seatIndex
+	removeRec(best, "Impatient")
+	return seatIndex
+end
+
 local function spawnCustomer(plotId: number, forcedLegendary: Types.LegendaryId?): number?
 	local owner = PlotService.GetOwner(plotId)
 	local ownerData = owner and DataService.GetData(owner)
@@ -491,10 +522,23 @@ local function spawnCustomer(plotId: number, forcedLegendary: Types.LegendaryId?
 			break
 		end
 	end
+	local kind: Types.CustomerKind, legendaryId: Types.LegendaryId?
+	if forcedLegendary then
+		kind, legendaryId = "Legendary", forcedLegendary
+	else
+		kind, legendaryId = Orders.rollKind(rng, RushHourService.IsActive())
+	end
+	if not seatIndex and kind == "Legendary" then
+		seatIndex = makeRoom(plotId, seatCount)
+		if not seatIndex then
+			warn("[CustomerService] SpawnLegendary: no seat")
+			return nil
+		end
+	end
 	if not seatIndex then
 		return nil
 	end
-	if not forcedLegendary and walkingCount(plotId) >= Timings.Customers.MaxQueuedPerPlot then
+	if not forcedLegendary and kind ~= "Legendary" and walkingCount(plotId) >= Timings.Customers.MaxQueuedPerPlot then
 		return nil
 	end
 
@@ -504,12 +548,6 @@ local function spawnCustomer(plotId: number, forcedLegendary: Types.LegendaryId?
 		if not table.find(available, dishId) then
 			table.insert(available, dishId)
 		end
-	end
-	local kind: Types.CustomerKind, legendaryId: Types.LegendaryId?
-	if forcedLegendary then
-		kind, legendaryId = "Legendary", forcedLegendary
-	else
-		kind, legendaryId = Orders.rollKind(rng, RushHourService.IsActive())
 	end
 	local id = nextId
 	nextId += 1
