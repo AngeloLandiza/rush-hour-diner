@@ -226,7 +226,8 @@ local UI = {
 		IntroFocus = { X = 0, Y = 4, Z = -6 }, -- plot-local point the establishing shot looks at
 		SubjectHeight = 1.5, -- Custom camera focus above the HumanoidRootPart (R15 head offset)
 		ArriveDistance = 20, -- character counts as "on the plot" within this many studs of Spawn
-		ArriveTimeoutSeconds = 6,
+		PollSeconds = 0.25, -- re-check the intro conditions this often (the teleport has no signal)
+		FallbackSeconds = 20, -- after joining, frame directly (no animation) if the intro hasn't run
 		HandoffFrames = 6, -- frames the framing is re-applied (and zoom pinned) after handing back to Custom
 		CounterMargin = 1.2, -- guard box around the counter (studs)
 		CounterClearance = 1.5, -- the camera is lifted to this height above the counter top

@@ -1,9 +1,12 @@
 --!strict
 -- CameraController: frames the opening shot and keeps the gameplay camera comfortable.
---   * On first spawn, each respawn and each plot change (LocalPlayer "PlotId"), a short scripted move
---     swoops from an establishing shot over the street into an elevated 3/4 view of the player's own
---     diner (kitchen, counter, seated customers and the character all in frame), then hands that exact
---     angle and zoom to the standard Custom camera.
+--   * Once per (character, plot): as soon as the PlotId attribute is set, the character has a root and
+--     the root stands on that plot's Spawn, a short scripted move swoops from an establishing shot over
+--     the street into an elevated 3/4 view of the player's own diner (kitchen, counter, seated
+--     customers and the character all in frame), then hands that exact angle and zoom to the standard
+--     Custom camera. State-driven (signals + a cheap poll), so join/claim/teleport timing doesn't
+--     matter; re-runs on respawn and plot change. If it hasn't run FallbackSeconds after joining, the
+--     final framing is applied directly.
 --   * Zoom is clamped to a comfortable range (Config/UI.Camera ZoomMin..ZoomMax).
 --   * A render-step guard lifts the camera over the counter instead of letting it clip into it.
 -- Owner: UI agent.
@@ -82,8 +85,7 @@ local function framingZoom(camera: Camera): number
 end
 
 -- Camera CFrame for a shot, in the plot's frame (+Z = street, +X = right when facing the street).
-local function shotCFrame(base: BasePart, shot: Shot): CFrame
-	local basis = base.CFrame
+local function shotCFrame(basis: CFrame, shot: Shot): CFrame
 	local street = basis:VectorToWorldSpace(Vector3.zAxis)
 	local right = basis:VectorToWorldSpace(Vector3.xAxis)
 	local yaw, pitch = math.rad(shot.yaw), math.rad(shot.pitch)
@@ -109,10 +111,6 @@ local function rootOf(character: Model): BasePart?
 	return nil
 end
 
-local function waitFrame()
-	task.wait()
-end
-
 local function setZoomRange(minZoom: number, maxZoom: number)
 	player.CameraMinZoomDistance = minZoom
 	player.CameraMaxZoomDistance = maxZoom
@@ -126,98 +124,41 @@ local function release(camera: Camera, myToken: number)
 	end
 end
 
-local function frameDiner(myToken: number)
-	local camera = workspace.CurrentCamera
-	local plotId = myPlotId()
-	local plot = plotId and plotModel(plotId)
-	local base = plot and plotBase(plot)
-	local character = player.Character
-	if not (camera and base and character) then
-		return
-	end
-	-- Wait for the root part and for the server's teleport onto the plot (it lands just after spawn
-	-- or a plot change). Polled per frame: the character can still be assembling its parts.
-	local spawn = (plot :: Model):FindFirstChild(WorldSchema.Parts.Spawn)
-	local deadline = os.clock() + Cam.ArriveTimeoutSeconds
-	local found: BasePart? = nil
-	while true do
-		found = rootOf(character)
-		local arrived = found ~= nil
-			and not (
-				spawn
-				and spawn:IsA("BasePart")
-				and (found.Position - spawn.Position).Magnitude > Cam.ArriveDistance
-			)
-		if arrived or os.clock() >= deadline then
-			break
-		end
-		waitFrame()
-		if myToken ~= token or not character.Parent then
-			return
-		end
-	end
-	if not found then
-		return
-	end
-	local root: BasePart = found
-
-	local zoom = framingZoom(camera)
-	local function finalShot(): Shot
-		return {
-			focus = root.Position + Vector3.new(0, Cam.SubjectHeight, 0),
-			zoom = zoom,
-			pitch = Cam.PitchDegrees,
-			yaw = Cam.YawDegrees,
-		}
-	end
-	local f = Cam.IntroFocus
-	local startShot: Shot = {
-		focus = base.CFrame:PointToWorldSpace(Vector3.new(f.X, f.Y, f.Z)),
-		zoom = Cam.IntroZoom,
-		pitch = Cam.IntroPitchDegrees,
-		yaw = Cam.IntroYawDegrees,
+local function finalShot(root: BasePart, zoom: number): Shot
+	return {
+		focus = root.Position + Vector3.new(0, Cam.SubjectHeight, 0),
+		zoom = zoom,
+		pitch = Cam.PitchDegrees,
+		yaw = Cam.YawDegrees,
 	}
+end
 
-	-- Pin the zoom while the Custom controller is still active so it adopts the framing distance, then
-	-- take over with a scripted move.
-	setZoomRange(zoom, zoom)
-	owner = myToken
-	camera.CameraType = Enum.CameraType.Scriptable
-	camera.CFrame = shotCFrame(base, startShot)
-
-	local started = os.clock()
-	local duration = INTRO.Time
-	while true do
-		waitFrame()
-		if myToken ~= token or not root.Parent then
-			release(camera, myToken)
-			return
-		end
-		local t = math.clamp((os.clock() - started) / duration, 0, 1)
-		local eased = TweenService:GetValue(t, INTRO.EasingStyle, INTRO.EasingDirection)
-		local shot = lerpShot(startShot, finalShot(), eased)
-		camera.CFrame = shotCFrame(base, shot)
-		camera.Focus = CFrame.new(shot.focus)
-		if t >= 1 then
-			break
-		end
+-- Hands the final framing to the Custom camera. When it (re)enables it restores its own last orbit,
+-- so for a few frames the framing is re-applied right after its update (Camera priority + 1); from
+-- then on it orbits from the current look vector. The zoom stays pinned until it has settled.
+local function handoff(camera: Camera, myToken: number, basis: CFrame, root: BasePart, zoom: number)
+	-- The engine skips assigning the new character as CameraSubject while the camera is Scriptable
+	-- (respawn during an intro), so always point the Custom camera at this character's humanoid.
+	local character = root.Parent
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		camera.CameraSubject = humanoid
 	end
-
-	-- Hand the angle back to the Custom camera. When it re-enables it restores its own last orbit, so for
-	-- a few frames we re-apply the framing right after its update (Camera priority + 1): from then on it
-	-- orbits from the current look vector. The zoom stays pinned until it has settled.
-	local final = finalShot()
-	camera.CFrame = shotCFrame(base, final)
+	setZoomRange(zoom, zoom)
+	local final = finalShot(root, zoom)
+	camera.CFrame = shotCFrame(basis, final)
 	camera.Focus = CFrame.new(final.focus)
 	release(camera, myToken)
+	if camera.CameraType ~= Enum.CameraType.Custom and owner == nil then
+		camera.CameraType = Enum.CameraType.Custom
+	end
 	local frames = 0
 	local done = Instance.new("BindableEvent")
 	local stepName = `{HANDOFF_STEP}_{myToken}`
 	RunService:BindToRenderStep(stepName, Enum.RenderPriority.Camera.Value + 1, function()
 		frames += 1
 		if myToken == token and root.Parent and camera.CameraType == Enum.CameraType.Custom then
-			local shot = finalShot()
-			camera.CFrame = shotCFrame(base, shot)
+			camera.CFrame = shotCFrame(basis, finalShot(root, zoom))
 		end
 		if frames >= Cam.HandoffFrames then
 			RunService:UnbindFromRenderStep(stepName)
@@ -231,23 +172,136 @@ local function frameDiner(myToken: number)
 	end
 end
 
-local function startIntro()
+-- The scripted move: establishing shot over the street -> final 3/4 framing, then handoff.
+local function playIntro(myToken: number, basis: CFrame, root: BasePart)
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local zoom = framingZoom(camera)
+	local f = Cam.IntroFocus
+	local startShot: Shot = {
+		focus = basis:PointToWorldSpace(Vector3.new(f.X, f.Y, f.Z)),
+		zoom = Cam.IntroZoom,
+		pitch = Cam.IntroPitchDegrees,
+		yaw = Cam.IntroYawDegrees,
+	}
+	-- Pin the zoom while the Custom controller is still active so it adopts the framing distance.
+	setZoomRange(zoom, zoom)
+	owner = myToken
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.CFrame = shotCFrame(basis, startShot)
+	local started = os.clock()
+	local duration = INTRO.Time
+	while true do
+		task.wait()
+		if myToken ~= token or not root.Parent then
+			release(camera, myToken)
+			return
+		end
+		local t = math.clamp((os.clock() - started) / duration, 0, 1)
+		local eased = TweenService:GetValue(t, INTRO.EasingStyle, INTRO.EasingDirection)
+		local shot = lerpShot(startShot, finalShot(root, zoom), eased)
+		camera.CFrame = shotCFrame(basis, shot)
+		camera.Focus = CFrame.new(shot.focus)
+		if t >= 1 then
+			break
+		end
+	end
+	handoff(camera, myToken, basis, root, zoom)
+end
+
+-- Runs fn as the newest camera job (any older intro stops at its next frame).
+local function run(label: string, fn: (myToken: number) -> ())
 	token += 1
 	local myToken = token
 	task.spawn(function()
 		local ok, err = pcall(function()
-			frameDiner(myToken)
+			fn(myToken)
 		end)
 		if not ok then
-			warn(`[CameraController] intro failed: {err}`)
+			warn(`[CameraController] {label} failed: {err}`)
 			local camera = workspace.CurrentCamera
 			if camera then
 				release(camera, myToken)
 			end
+			if myToken == token then
+				setZoomRange(Cam.ZoomMin, Cam.ZoomMax)
+			end
 		end
-		if myToken == token then
-			setZoomRange(Cam.ZoomMin, Cam.ZoomMax)
-		end
+	end)
+end
+
+-- ── State-driven trigger ────────────────────────────────────────────────────
+-- The intro plays once per (character, plot) pair, the first time all of these hold: the PlotId
+-- attribute is set, the character has a HumanoidRootPart, and that root stands within
+-- ArriveDistance of the plot's Spawn (the server teleport has landed). Every relevant signal and a
+-- cheap poll re-evaluate it, so the order and timing of plot claim, spawn and teleport don't matter.
+local framedCharacter: Model? = nil
+local framedPlot: number? = nil
+local everFramed = false
+local joinedAt = os.clock()
+
+type Ready = { plotId: number, character: Model, root: BasePart, basis: CFrame }
+
+local function readyState(): Ready?
+	local plotId = myPlotId()
+	local character = player.Character
+	if not (plotId and character) then
+		return nil
+	end
+	local root = rootOf(character)
+	local plot = plotModel(plotId)
+	local base = plot and plotBase(plot)
+	local spawn = plot and plot:FindFirstChild(WorldSchema.Parts.Spawn)
+	if not (root and base and spawn and spawn:IsA("BasePart")) then
+		return nil
+	end
+	if (root.Position - spawn.Position).Magnitude > Cam.ArriveDistance then
+		return nil
+	end
+	return { plotId = plotId, character = character, root = root, basis = base.CFrame }
+end
+
+local function evaluate()
+	local ready = readyState()
+	if not ready or (ready.character == framedCharacter and ready.plotId == framedPlot) then
+		return
+	end
+	framedCharacter, framedPlot = ready.character, ready.plotId
+	everFramed = true
+	run("intro", function(myToken)
+		playIntro(myToken, ready.basis, ready.root)
+	end)
+end
+
+-- Safety net: if nothing has framed the shot FallbackSeconds after joining, apply the final framing
+-- directly (no animation), oriented to the plot when there is one, else to the character's facing.
+local function fallback()
+	if everFramed or os.clock() - joinedAt < Cam.FallbackSeconds then
+		return
+	end
+	local character = player.Character
+	local root = character and rootOf(character)
+	local camera = workspace.CurrentCamera
+	if not (root and camera) then
+		return
+	end
+	everFramed = true
+	local plotId = myPlotId()
+	local plot = plotId and plotModel(plotId)
+	local base = plot and plotBase(plot)
+	local basis: CFrame
+	if base then
+		basis = base.CFrame
+	else
+		local look = root.CFrame.LookVector
+		local flat = Vector3.new(look.X, 0, look.Z)
+		basis = if flat.Magnitude > EPSILON then CFrame.lookAt(Vector3.zero, flat) else CFrame.identity
+	end
+	local framedRoot: BasePart = root
+	run("fallback", function(myToken)
+		handoff(camera, myToken, basis, framedRoot, framingZoom(camera))
 	end)
 end
 
@@ -300,16 +354,24 @@ end
 
 function CameraController.Start()
 	RunService:BindToRenderStep(GUARD_STEP, Enum.RenderPriority.Camera.Value + 1, guardCounter)
-	player.CharacterAdded:Connect(function()
-		startIntro()
+	player.CharacterAdded:Connect(function(character)
+		evaluate()
+		character.ChildAdded:Connect(function()
+			evaluate()
+		end)
 	end)
-	player:GetAttributeChangedSignal(WorldSchema.Attributes.PlayerPlotId):Connect(function()
-		if myPlotId() then
-			startIntro()
-		end
-	end)
-	if player.Character and myPlotId() then
-		startIntro()
+	if player.Character then
+		player.Character.ChildAdded:Connect(function()
+			evaluate()
+		end)
+	end
+	player:GetAttributeChangedSignal(WorldSchema.Attributes.PlayerPlotId):Connect(evaluate)
+	evaluate()
+	-- Cheap poll for what has no signal (the teleport landing) and for the fallback timer.
+	while true do
+		task.wait(Cam.PollSeconds)
+		evaluate()
+		fallback()
 	end
 end
 
