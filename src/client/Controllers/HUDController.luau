@@ -71,6 +71,7 @@ local function tile(
 	})
 	local b = Button.new({
 		parent = root,
+		name = icon .. "Button",
 		variant = variant,
 		icon = icon,
 		iconSize = U.RailIcon,
@@ -161,7 +162,7 @@ function HUDController.Start()
 	local settings = SettingsPanel.new()
 	local gear = Button.new({
 		parent = layer,
-		name = "Settings",
+		name = "SettingsButton",
 		variant = "secondary",
 		icon = "Gear",
 		iconSize = 26,
@@ -348,7 +349,7 @@ function HUDController.Start()
 	-- ── Layout ──────────────────────────────────────────────────────────────
 	local stationOpen = false
 	local function heldOffset(): number
-		return if stationOpen then U.StationPanelHeight + U.Margin * 2 else U.Margin
+		return if stationOpen then U.StationPanelHeight + U.Margin * 2 + Space.LG else U.Margin
 	end
 	local function layout()
 		local size = Root.size()
@@ -362,10 +363,11 @@ function HUDController.Start()
 		Toast.setTop(statusBottom + U.Gap)
 		local railTop = math.max(topRow, if narrow then statusBottom else topRow) + U.Margin
 		local collide = (size.X - U.StationPanelWidth) / 2 < U.RailTile + U.Margin * 3
-		local bottom = if collide then U.StationPanelHeight + U.Margin * 3 else U.Margin
+		-- When the rails share columns with the bottom stack, keep clear of panel + coach mark/held chip.
+		local bottom = if collide then U.StationPanelHeight + U.CoachHeight + U.Margin * 4 + Space.LG else U.Margin
 		local centerY = (railTop + size.Y - bottom) / 2
-		left.Position = UDim2.fromOffset(U.Margin - Space.SM, centerY)
-		right.Position = UDim2.new(1, -(U.Margin - Space.SM), 0, centerY)
+		left.Position = UDim2.fromOffset(U.Margin, centerY)
+		right.Position = UDim2.new(1, -U.Margin, 0, centerY)
 		held.instance.Position = UDim2.new(0.5, 0, 1, -heldOffset())
 	end
 	Root.onResize(function()

@@ -2,6 +2,7 @@
 -- The single ScreenGui, a UIScale driven by viewport size, named z-layers and a resize signal that
 -- reports the design-space size (screen px / scale). Owner: UI agent.
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local Signal = require(script.Parent.Parent.Signal)
 local Theme = require(script.Parent.Theme)
@@ -40,15 +41,26 @@ local function build(): Frame
 	local function refresh()
 		local abs = g.AbsoluteSize
 		local s = computeScale(abs)
-		scale.Scale = s
-		frame.Size = UDim2.fromScale(1 / s, 1 / s)
 		local size = Vector2.new(abs.X / s, abs.Y / s)
+		-- Studio-only: ScreenGui attribute DebugViewport (Vector2, design px) previews a small screen.
+		local debugSize = g:GetAttribute("DebugViewport")
+		if RunService:IsStudio() and typeof(debugSize) == "Vector2" then
+			s = 1
+			size = debugSize
+			frame.Size = UDim2.fromOffset(debugSize.X, debugSize.Y)
+			frame.ClipsDescendants = true
+		else
+			frame.Size = UDim2.fromScale(1 / s, 1 / s)
+			frame.ClipsDescendants = false
+		end
+		scale.Scale = s
 		if size ~= designSize then
 			designSize = size
 			Root.Resized:Fire(size)
 		end
 	end
 	g:GetPropertyChangedSignal("AbsoluteSize"):Connect(refresh)
+	g:GetAttributeChangedSignal("DebugViewport"):Connect(refresh)
 	gui = g
 	content = frame
 	uiScale = scale

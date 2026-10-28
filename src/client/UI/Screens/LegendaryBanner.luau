@@ -20,7 +20,7 @@ local C = Theme.C
 local U = Theme.UI
 
 local RAY_COUNT = 10
-local RAY_SIZE = 300
+local RAY_SIZE = 440
 local RIBBON_MAX = 560
 local TAIL = 26
 local KICKER_W = 168
@@ -52,11 +52,11 @@ local function rays(parent: Instance): () -> ()
 	})
 	for i = 1, RAY_COUNT do
 		local ray = Util.frame(host, {
-			BackgroundTransparency = 0.55,
+			BackgroundTransparency = 0.35,
 			BackgroundColor3 = C.RushWarm,
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.new(0, 34, 1, 0),
+			Size = UDim2.new(0, 40, 1, 0),
 			Rotation = (i - 1) * (180 / RAY_COUNT),
 			ZIndex = 1,
 		})
@@ -120,6 +120,8 @@ function LegendaryBanner.show(a: Types.LegendaryAnnouncement)
 			child:Destroy()
 		end
 	end
+	-- The gradient multiplies the face color, so the face is white and the gradient carries the hues.
+	face.BackgroundColor3 = C.Raised
 	Util.new("UIGradient", {
 		Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, C.Accent),
@@ -145,8 +147,8 @@ function LegendaryBanner.show(a: Types.LegendaryAnnouncement)
 
 	local main, sub = headline(a)
 	local title = Util.display(face, main, {
-		Position = UDim2.new(0, Theme.Space.LG, 0.12, 0),
-		Size = UDim2.new(1, -Theme.Space.LG * 2, 0.5, 0),
+		Position = UDim2.new(0, Theme.Space.LG, 0.2, 0),
+		Size = UDim2.new(1, -Theme.Space.LG * 2, 0.42, 0),
 		TextSize = Theme.Type.Heading,
 		TextColor3 = C.TextInverse,
 		ZIndex = 5,
@@ -155,11 +157,11 @@ function LegendaryBanner.show(a: Types.LegendaryAnnouncement)
 	local subLabel = Util.display(face, sub, {
 		Position = UDim2.new(0, Theme.Space.LG, 0.6, 0),
 		Size = UDim2.new(1, -Theme.Space.LG * 2, 0.3, 0),
-		TextSize = Theme.Type.Title,
-		TextColor3 = if a.tip then C.GoldLight else C.TextInverse,
+		TextSize = if a.tip then Theme.Type.Heading else Theme.Type.Title,
+		TextColor3 = C.TextInverse,
 		ZIndex = 5,
 	}, C.Outline)
-	Util.fit(subLabel, Theme.Type.Title)
+	Util.fit(subLabel, if a.tip then Theme.Type.Heading else Theme.Type.Title)
 
 	local kicker = Card.new({
 		parent = root,
@@ -168,7 +170,7 @@ function LegendaryBanner.show(a: Types.LegendaryAnnouncement)
 		edge = C.Outline,
 		radius = math.huge,
 		anchor = Vector2.new(0.5, 0.5),
-		position = UDim2.fromScale(0.5, 0.11),
+		position = UDim2.fromScale(0.5, 0.06),
 		size = UDim2.fromOffset(KICKER_W, KICKER_H),
 		zIndex = 6,
 	})

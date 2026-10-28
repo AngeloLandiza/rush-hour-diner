@@ -87,6 +87,8 @@ local UI = {
 		Gold = { base = "Mustard" },
 		GoldDeep = { base = "MustardDeep" },
 		GoldLight = { base = "Mustard", mix = "Cream", t = 0.55 },
+		Bronze = { base = "MustardDeep", mix = "KetchupDeep", t = 0.45 },
+		BronzeDeep = { base = "KetchupDeep", mix = "Ink", t = 0.3 },
 		-- Patience ring
 		PatienceHigh = { base = "Mint" },
 		PatienceMid = { base = "Mustard" },
@@ -216,7 +218,7 @@ local UI = {
 		ZHud = 2,
 		ZPanels = 5,
 		ZStation = 6,
-		ZTutorial = 7,
+		ZTutorial = 4, -- under modals so the scrim covers the coach mark
 		ZToasts = 10,
 		ZFly = 11,
 		ZBanner = 12,
@@ -224,7 +226,7 @@ local UI = {
 
 		-- HUD.
 		TopRowHeight = 44,
-		CoinPillWidth = 152,
+		CoinPillWidth = 176,
 		CoinIconSize = 46,
 		RushPillWidth = 156,
 		RushPillHeight = 42,
@@ -241,7 +243,7 @@ local UI = {
 		BadgeSize = 22,
 		HeldChipWidth = 196,
 		HeldChipHeight = 46,
-		MenuChipWidth = 92,
+		MenuChipWidth = 74,
 		GearSize = 44,
 		EdgeGlowSize = 70,
 		EdgeGlowTransparency = 0.45,
@@ -288,8 +290,8 @@ local UI = {
 		BannerRaySeconds = 8,
 		ConfettiCount = 36,
 		StampSeconds = 1.4,
-		TooltipWidth = 180,
-		TooltipHeight = 34,
+		TooltipWidth = 140,
+		TooltipHeight = 30,
 
 		-- Station panel.
 		StationPanelWidth = 344,

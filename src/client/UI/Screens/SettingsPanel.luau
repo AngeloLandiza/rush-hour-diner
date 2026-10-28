@@ -21,7 +21,11 @@ local ROWS: { { key: SettingsController.Key, title: string, sub: string, icon: s
 }
 
 function SettingsPanel.new(): Panel.Panel
-	local panel = Panel.new("Settings", { icon = "Gear", accent = C.Info })
+	local panel = Panel.new("Settings", {
+		icon = "Gear",
+		accent = C.Info,
+		maxHeight = U.PanelHeaderHeight + (U.SettingRowHeight + Space.SM) * #ROWS + Space.LG * 2,
+	})
 	Util.list(panel.Body, Enum.FillDirection.Vertical, Space.SM)
 	local refreshers: { () -> () } = {}
 	for i, row in ROWS do

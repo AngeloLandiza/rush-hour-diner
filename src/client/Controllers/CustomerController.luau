@@ -207,6 +207,7 @@ local function createBubble(view: Types.CustomerView, head: BasePart): Bubble
 	local dishId: Types.DishId = view.dishId or "Burger" -- caller guarantees a dish
 	local legendary = view.kind == "Legendary"
 	local gui = Util.new("BillboardGui", {
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Name = "OrderBubble",
 		Adornee = head,
 		AlwaysOnTop = true,

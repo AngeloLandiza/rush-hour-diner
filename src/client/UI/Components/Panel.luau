@@ -7,12 +7,14 @@ local Card = require(script.Parent.Card)
 local Icons = require(script.Parent.Parent.Icons)
 local Root = require(script.Parent.Parent.Root)
 local Theme = require(script.Parent.Parent.Theme)
+local Tooltip = require(script.Parent.Tooltip)
 local Tween = require(script.Parent.Parent.Tween)
 local Util = require(script.Parent.Parent.Util)
 
 export type Options = {
 	icon: string?,
 	accent: Color3?, -- header band color
+	maxHeight: number?, -- cap for short content (default Theme.UI.PanelMaxHeight)
 }
 
 export type Panel = {
@@ -104,7 +106,7 @@ function Panel.new(title: string, opts: Options?): Panel
 		Visible = false,
 		ZIndex = 1,
 	})
-	Util.maxSize(root, U.PanelMaxWidth, U.PanelMaxHeight)
+	Util.maxSize(root, U.PanelMaxWidth, o.maxHeight or U.PanelMaxHeight)
 	local card = Card.new({ parent = root, variant = "paper", radius = U.PanelRadius })
 	local face = card.face
 
@@ -196,6 +198,7 @@ function Panel.new(title: string, opts: Options?): Panel
 			end
 			openPanel = this
 			this._open = true
+			Tooltip.hide()
 			showScrim(true)
 			this.instance.Visible = true
 			local s = Tween.scaleOf(this.instance)
@@ -242,7 +245,7 @@ function Panel.new(title: string, opts: Options?): Panel
 	}
 
 	Button.new({
-		name = "Close",
+		name = title .. "CloseButton",
 		parent = header,
 		variant = "danger",
 		icon = "Close",

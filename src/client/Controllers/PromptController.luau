@@ -85,6 +85,7 @@ end
 local function build(prompt: ProximityPrompt, inputType: Enum.ProximityPromptInputType): Shown
 	local isServe = customerIdOf(prompt) ~= nil
 	local gui = Util.new("BillboardGui", {
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Name = "RHD_Prompt",
 		Adornee = prompt.Parent,
 		AlwaysOnTop = true,

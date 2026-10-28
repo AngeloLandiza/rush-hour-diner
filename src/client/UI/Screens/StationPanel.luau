@@ -211,6 +211,7 @@ function StationPanel.new(): StationPanel
 
 	local actY = U.StationPanelHeight - Space.MD - U.StationActHeight
 	local act = Button.new({
+		name = "CookActionButton",
 		text = "",
 		parent = face,
 		textSize = Theme.Type.Display - 4,
@@ -225,16 +226,18 @@ function StationPanel.new(): StationPanel
 		end,
 	})
 	act.instance.ZIndex = 3
+	-- Keycap sticker on the button's top-right corner (never covers the label).
 	local keycap = Card.new({
-		parent = act.face,
+		parent = act.instance,
 		variant = "glass",
 		radius = Theme.Radius.SM,
 		anchor = Vector2.new(1, 0.5),
-		position = UDim2.new(1, -Space.SM, 0.5, 0),
-		size = UDim2.fromOffset(52, 24),
+		position = UDim2.new(1, -Space.SM, 0, 2),
+		size = UDim2.fromOffset(52, 20),
 		shadow = false,
 		zIndex = 10,
 	})
+	keycap.instance.Rotation = 4
 	local keyLabel = Util.display(keycap.face, "", {
 		TextSize = Theme.Type.Micro,
 		TextColor3 = C.TextInverse,
@@ -243,6 +246,7 @@ function StationPanel.new(): StationPanel
 
 	local self: StationPanel
 	local closeBtn = Button.new({
+		name = "StationCloseButton",
 		parent = face,
 		variant = "secondary",
 		icon = "CloseInk",
@@ -266,7 +270,7 @@ function StationPanel.new(): StationPanel
 		Stamp.show(text, {
 			color = color,
 			textSize = size,
-			position = UDim2.new(0.5, 0, 1, -(U.StationPanelHeight + U.Margin + Space.XL)),
+			position = UDim2.new(0.5, 0, 1, -(U.StationPanelHeight + U.Margin + Space.XL * 2 + Space.SM)),
 			seconds = Theme.UI.StampSeconds * 0.6,
 		})
 	end

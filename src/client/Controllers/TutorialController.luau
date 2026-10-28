@@ -29,6 +29,8 @@ local U = Theme.UI
 local Space = Theme.Space
 
 local STEPS = 3
+-- "Cook a Burger" but "Cook some Fries".
+local ARTICLE: { [string]: string } = { Fries = "some" }
 local DOT = 8
 local SKIP_W = 56
 local STEP_DISC = 30
@@ -177,7 +179,7 @@ function TutorialController.Start()
 		coach.instance.Visible = not finished and not hide
 		local bottom = U.Margin
 		if stationOpen then
-			bottom += U.StationPanelHeight + U.Margin
+			bottom += U.StationPanelHeight + U.Margin + Space.LG
 		end
 		if State.held then
 			bottom += U.HeldChipHeight + U.Gap
@@ -259,6 +261,7 @@ function TutorialController.Start()
 			a0, a1, beam = s, e, b
 		end
 		local gui = Util.new("BillboardGui", {
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 			Name = "TutorialArrow",
 			Adornee = part,
 			AlwaysOnTop = true,
@@ -350,7 +353,8 @@ function TutorialController.Start()
 			if dishReady(customer.dishId) then
 				setStep(2, `Collect the {dish.displayName} before it burns!`)
 			else
-				setStep(1, `Cook a {dish.displayName} at the {station.displayName}`)
+				local article = ARTICLE[customer.dishId] or "a"
+				setStep(1, `Cook {article} {dish.displayName} at the {station.displayName}`)
 			end
 			local plotId = State.myPlotId or customer.plotId
 			local part = stationPart(plotId, dish.stationId)

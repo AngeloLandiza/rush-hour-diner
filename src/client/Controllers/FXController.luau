@@ -44,6 +44,7 @@ end
 
 local function floatText(anchor: BasePart, text: string, kicker: string?, mine: boolean)
 	local gui = Util.new("BillboardGui", {
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Name = "FloatText",
 		Adornee = anchor,
 		AlwaysOnTop = true,

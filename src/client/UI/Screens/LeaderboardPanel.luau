@@ -27,7 +27,7 @@ local SCORE_W = 110
 local MEDAL_COLORS: { [number]: { face: Color3, edge: Color3 } } = {
 	{ face = C.Gold, edge = C.GoldDeep },
 	{ face = C.Neutral, edge = C.NeutralEdge },
-	{ face = C.DangerLight, edge = C.Danger },
+	{ face = C.Bronze, edge = C.BronzeDeep },
 }
 
 local function emptyState(frame: Frame)

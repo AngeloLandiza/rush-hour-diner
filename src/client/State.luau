@@ -42,6 +42,8 @@ local State = {
 }
 
 local readyEvent = Instance.new("BindableEvent")
+-- PlotsChanged that lands while GetSnapshot is in flight is at least as new as the snapshot's copy.
+local plotsFromEvent = false
 local localPlayer = Players.LocalPlayer
 
 -- Server time (unix seconds).
@@ -98,6 +100,9 @@ local function recomputePlot()
 end
 
 local function applyPlots(plots: { Types.PlotInfo })
+	if not State.Ready then
+		plotsFromEvent = true
+	end
 	State.plots = plots
 	recomputePlot()
 	State.Changed.Plots:Fire(plots)
@@ -107,7 +112,9 @@ local function applySnapshot(snap: Remotes.Snapshot)
 	if snap.data then
 		State.data = snap.data
 	end
-	State.plots = snap.plots
+	if not plotsFromEvent then
+		State.plots = snap.plots
+	end
 	State.myPlotId = snap.myPlotId
 	recomputePlot()
 	State.stations = {}

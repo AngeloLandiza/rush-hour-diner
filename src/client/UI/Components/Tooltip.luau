@@ -42,6 +42,13 @@ local function get(): (Card.Card, TextLabel)
 	return card, label
 end
 
+function Tooltip.hide()
+	local b = bubble
+	if b then
+		b.instance.Visible = false
+	end
+end
+
 -- side: "right" (default) or "left" of the target.
 function Tooltip.attach(target: GuiObject, getText: () -> string, side: string?)
 	target.MouseEnter:Connect(function()
@@ -63,12 +70,10 @@ function Tooltip.attach(target: GuiObject, getText: () -> string, side: string?)
 		inst.Visible = true
 		Tween.popIn(inst)
 	end)
-	target.MouseLeave:Connect(function()
-		local b = bubble
-		if b then
-			b.instance.Visible = false
-		end
-	end)
+	target.MouseLeave:Connect(Tooltip.hide)
+	if target:IsA("GuiButton") then
+		target.MouseButton1Down:Connect(Tooltip.hide)
+	end
 end
 
 return Tooltip

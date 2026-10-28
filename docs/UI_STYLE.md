@@ -305,3 +305,17 @@ station panel is open.
 - `Config/UI.Images` maps hero icons to uploaded image ids. 0 keeps the code icon.
 - Screenshot loop checklist: HUD idle, shop open, station panel, customer bubble, Rush active,
   legendary banner, plus a small viewport.
+
+## 7. Implementation rules learned in Studio (phase 2)
+- **Every BillboardGui sets `ZIndexBehavior = Sibling`.** The default (Global) let ring discs bury the
+  dish-icon shapes inside the order bubbles.
+- Name important buttons uniquely: `ShopButton`, `CrewButton`, `TrophyButton`, `CalendarButton`,
+  `CrateButton`, `SettingsButton`, `<Title>CloseButton`, `CookActionButton`, `StationCloseButton`.
+  Automation and tests can then click them by path.
+- The keycap hint is a tilted sticker on the action button's top-right corner, so it never covers
+  the label.
+- Small-screen preview (Studio only): set
+  `PlayerGui.RushHourDiner:SetAttribute("DebugViewport", Vector2.new(360, 640))` (or 640×360). Set it
+  to nil to restore the real viewport.
+- `screen_capture` does not render BillboardGuis. To review bubbles and prompts, clone
+  `OrderBubble.Bubble` or `RHD_Prompt.Hit` into a temporary Sibling ScreenGui.

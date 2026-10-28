@@ -14,6 +14,7 @@ local Badge = {}
 
 local C = Theme.C
 local MAX_COUNT = 9
+local WIDE = 1.45 -- width factor for two-character badges ("9+")
 
 function Badge.new(parent: GuiObject, color: Color3?): Badge
 	local size = Theme.UI.BadgeSize
@@ -22,7 +23,6 @@ function Badge.new(parent: GuiObject, color: Color3?): Badge
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(1, -4, 0, 4),
 		Size = UDim2.fromOffset(size, size),
-		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundTransparency = 0,
 		BackgroundColor3 = color or C.Danger,
 		ZIndex = 20,
@@ -30,11 +30,8 @@ function Badge.new(parent: GuiObject, color: Color3?): Badge
 	})
 	Util.pill(root)
 	Util.stroke(root, C.TextInverse, Theme.Stroke.Thin)
-	Util.padding(root, 0, Theme.Space.XS + 1, 0, Theme.Space.XS + 1)
-	Util.new("UISizeConstraint", { MinSize = Vector2.new(size, size) }, root)
 	local label = Util.display(root, "", {
-		AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.fromScale(0, 1),
+		Size = UDim2.fromScale(1, 1),
 		TextSize = Theme.Type.Caption + 1,
 		TextColor3 = C.TextInverse,
 		ZIndex = 21,
@@ -63,6 +60,7 @@ function Badge.new(parent: GuiObject, color: Color3?): Badge
 			root.Visible = text ~= nil
 			if text then
 				label.Text = text
+				root.Size = UDim2.fromOffset(if #text > 1 then math.floor(size * WIDE) else size, size)
 				if stopPulse then
 					stopPulse()
 					stopPulse = nil
