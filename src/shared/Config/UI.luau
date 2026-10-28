@@ -227,8 +227,7 @@ local UI = {
 		SubjectHeight = 1.5, -- Custom camera focus above the HumanoidRootPart (R15 head offset)
 		ArriveDistance = 20, -- character counts as "on the plot" within this many studs of Spawn
 		ArriveTimeoutSeconds = 6,
-		CharacterWaitSeconds = 10,
-		HandoffFrames = 3, -- frames the zoom stays pinned after handing back to the Custom camera
+		HandoffFrames = 6, -- frames the framing is re-applied (and zoom pinned) after handing back to Custom
 		CounterMargin = 1.2, -- guard box around the counter (studs)
 		CounterClearance = 1.5, -- the camera is lifted to this height above the counter top
 	},

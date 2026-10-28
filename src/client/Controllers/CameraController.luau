@@ -21,6 +21,7 @@ local CameraController = {}
 local Cam = Theme.Camera
 local INTRO: TweenInfo = Theme.Motion.CameraIntro
 local GUARD_STEP = "RHD_CameraGuard"
+local HANDOFF_STEP = "RHD_CameraHandoff"
 local EPSILON = 1e-3
 
 local player = Players.LocalPlayer
@@ -109,7 +110,7 @@ local function rootOf(character: Model): BasePart?
 end
 
 local function waitFrame()
-	RunService.RenderStepped:Wait()
+	task.wait()
 end
 
 local function setZoomRange(minZoom: number, maxZoom: number)
@@ -134,25 +135,31 @@ local function frameDiner(myToken: number)
 	if not (camera and base and character) then
 		return
 	end
-	if not rootOf(character) then
-		character:WaitForChild("HumanoidRootPart", Cam.CharacterWaitSeconds)
+	-- Wait for the root part and for the server's teleport onto the plot (it lands just after spawn
+	-- or a plot change). Polled per frame: the character can still be assembling its parts.
+	local spawn = (plot :: Model):FindFirstChild(WorldSchema.Parts.Spawn)
+	local deadline = os.clock() + Cam.ArriveTimeoutSeconds
+	local found: BasePart? = nil
+	while true do
+		found = rootOf(character)
+		local arrived = found ~= nil
+			and not (
+				spawn
+				and spawn:IsA("BasePart")
+				and (found.Position - spawn.Position).Magnitude > Cam.ArriveDistance
+			)
+		if arrived or os.clock() >= deadline then
+			break
+		end
+		waitFrame()
+		if myToken ~= token or not character.Parent then
+			return
+		end
 	end
-	local found = rootOf(character)
-	if not found or myToken ~= token then
+	if not found then
 		return
 	end
 	local root: BasePart = found
-	-- The server teleports the character onto the plot just after spawn / plot change: wait for it.
-	local spawn = (plot :: Model):FindFirstChild(WorldSchema.Parts.Spawn)
-	if spawn and spawn:IsA("BasePart") then
-		local deadline = os.clock() + Cam.ArriveTimeoutSeconds
-		while (root.Position - spawn.Position).Magnitude > Cam.ArriveDistance and os.clock() < deadline do
-			waitFrame()
-			if myToken ~= token or not root.Parent then
-				return
-			end
-		end
-	end
 
 	local zoom = framingZoom(camera)
 	local function finalShot(): Shot
@@ -196,14 +203,29 @@ local function frameDiner(myToken: number)
 		end
 	end
 
-	-- Hand the exact angle back to the Custom camera: it orbits from the current look vector.
+	-- Hand the angle back to the Custom camera. When it re-enables it restores its own last orbit, so for
+	-- a few frames we re-apply the framing right after its update (Camera priority + 1): from then on it
+	-- orbits from the current look vector. The zoom stays pinned until it has settled.
 	local final = finalShot()
 	camera.CFrame = shotCFrame(base, final)
 	camera.Focus = CFrame.new(final.focus)
 	release(camera, myToken)
-	for _ = 1, Cam.HandoffFrames do
-		waitFrame()
-	end
+	local frames = 0
+	local done = Instance.new("BindableEvent")
+	local stepName = `{HANDOFF_STEP}_{myToken}`
+	RunService:BindToRenderStep(stepName, Enum.RenderPriority.Camera.Value + 1, function()
+		frames += 1
+		if myToken == token and root.Parent and camera.CameraType == Enum.CameraType.Custom then
+			local shot = finalShot()
+			camera.CFrame = shotCFrame(base, shot)
+		end
+		if frames >= Cam.HandoffFrames then
+			RunService:UnbindFromRenderStep(stepName)
+			done:Fire()
+		end
+	end)
+	done.Event:Wait()
+	done:Destroy()
 	if myToken == token then
 		setZoomRange(Cam.ZoomMin, Cam.ZoomMax)
 	end
