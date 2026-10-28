@@ -8,7 +8,7 @@ export type DishDef = {
 	stationId: Types.StationId,
 	basePrice: number, -- coins before customer multiplier and tip
 	cookSeconds: number, -- Cooking phase (before flip) at speed level 0
-	flipWindowSeconds: number, -- NeedsFlip window; missing it burns the dish
+	flipWindowSeconds: number, -- NeedsFlip window; missing it burns the dish (forgiving for new players)
 	perfectSeconds: number, -- flip within this many seconds of the window opening = Perfect
 	finishSeconds: number, -- Finishing phase (after flip) at speed level 0
 	burnSeconds: number, -- Ready → Burnt if not collected
@@ -23,7 +23,7 @@ local Dishes = {
 			stationId = "Grill",
 			basePrice = 10,
 			cookSeconds = 3,
-			flipWindowSeconds = 2.5,
+			flipWindowSeconds = 4,
 			perfectSeconds = 0.8,
 			finishSeconds = 2,
 			burnSeconds = 8,
@@ -35,7 +35,7 @@ local Dishes = {
 			stationId = "Fryer",
 			basePrice = 8,
 			cookSeconds = 2.5,
-			flipWindowSeconds = 2.5,
+			flipWindowSeconds = 4,
 			perfectSeconds = 0.8,
 			finishSeconds = 1.5,
 			burnSeconds = 8,
@@ -47,7 +47,7 @@ local Dishes = {
 			stationId = "Oven",
 			basePrice = 16,
 			cookSeconds = 5,
-			flipWindowSeconds = 2.5,
+			flipWindowSeconds = 4,
 			perfectSeconds = 0.8,
 			finishSeconds = 3,
 			burnSeconds = 8,
@@ -59,7 +59,7 @@ local Dishes = {
 			stationId = "Soda",
 			basePrice = 5,
 			cookSeconds = 1.5,
-			flipWindowSeconds = 2.5,
+			flipWindowSeconds = 4,
 			perfectSeconds = 0.8,
 			finishSeconds = 1,
 			burnSeconds = 10,
