@@ -96,7 +96,7 @@ local function writeLifetime(player: Player)
 	local ok, err = pcall(function()
 		store:SetAsync(tostring(player.UserId), value)
 	end)
-	if ok then
+	if ok and player.Parent == Players then
 		lastWritten[player.UserId] = value
 	else
 		warn(`[LeaderboardService] write failed: {err}`)
@@ -207,7 +207,8 @@ function LeaderboardService.Init()
 		tally.value += result.payout.total
 	end)
 	Players.PlayerRemoving:Connect(function(player)
-		nameCache[player.UserId] = player.Name
+		lastWritten[player.UserId] = nil
+		nameCache[player.UserId] = nil
 	end)
 end
 

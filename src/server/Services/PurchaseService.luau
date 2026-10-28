@@ -83,6 +83,9 @@ function PurchaseService.GetTipBoostPct(player: Player): number
 end
 
 local function setOwned(player: Player, pass: any, owned: boolean)
+	if player.Parent ~= Players then
+		return false
+	end
 	local cache = ownership[player]
 	if not cache then
 		cache = {}
@@ -257,9 +260,9 @@ local function handleRewardedAd(player: Player, _payload: any)
 		return service:GetAdAvailabilityNowAsync(Enum.AdFormat.RewardedVideo)
 	end)
 	if
-		availOk
-		and availability ~= nil
-		and availability.AdAvailabilityResult ~= Enum.AdAvailabilityResult.IsAvailable
+		not availOk
+		or availability == nil
+		or availability.AdAvailabilityResult ~= Enum.AdAvailabilityResult.IsAvailable
 	then
 		toast(player, "No ad available right now. Try again soon!", "Info")
 		return

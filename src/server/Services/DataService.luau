@@ -222,9 +222,8 @@ function DataService.CollectRestock(player: Player, full: boolean): number
 		return 0
 	end
 	local now = os.time()
-	local amount = if full
-		then LogicOffline.fullRestock(data.upgrades)
-		else LogicOffline.pending(data.lastRestock, now, data.upgrades)
+	local pending = LogicOffline.pending(data.lastRestock, now, data.upgrades)
+	local amount = if full then pending + LogicOffline.fullRestock(data.upgrades) else pending
 	if amount <= 0 and not full then
 		return 0
 	end
@@ -341,14 +340,10 @@ local function loadPlayer(player: Player)
 		return player.Parent ~= Players
 	end
 	local profile: any = store:StartSessionAsync(key, { Cancel = cancelled })
-	if profile == nil and not cancelled() then
-		-- Session lock was not released in time: take it over.
-		profile = store:StartSessionAsync(key, { Steal = true, Cancel = cancelled })
-	end
 	if profile == nil then
 		loading[player] = nil
-		loadFailed[player] = true
 		if not cancelled() then
+			loadFailed[player] = true
 			player:Kick(LOAD_FAIL_MESSAGE)
 		end
 		return
@@ -494,6 +489,9 @@ function DataService.Init()
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
 
 	Events.PassOwnershipChanged:Connect(function(player, pass, owned)
+		if player.Parent ~= Players then
+			return
+		end
 		local cache = passCache[player]
 		if not cache then
 			cache = {}
