@@ -5,12 +5,22 @@
 -- free-player targets (first upgrade < 2 min, all 13 in 6-8 h, first cycle < 3 min) are missed.
 --
 -- Assumptions (all documented here, tweak the constants below):
---  * One cook at a time. Each serve cycle = WalkSeconds + HoldSeconds + cook + FlipReactionSeconds
---    + finish + serve overhead. The player always flips inside the Perfect window (reaction < perfect).
---  * With the Robo-Waiter (AutoServer) the carry/serve walk overhead is removed (bot delivers).
---  * Customers arrive every Orders.spawnInterval(rush) seconds, limited by seatCount; a full diner
---    drops the arrival. Seats stay occupied for EatSeconds after a serve.
---  * The player serves the customer with the least remaining patience that they can still reach.
+--  * One cook at a time. Each serve cycle = PICKUP + HOLD + cook + FLIP_REACTION + finish + serve
+--    overhead. The player always flips inside the Perfect window (reaction < perfect).
+--  * GEOMETRY (110x90 plots, WalkSpeed Timings.Customers.WalkSpeed = 12): CustomerSpawn -> Door is
+--    SPAWN_TO_DOOR studs; Door -> seat is DOOR_TO_STOOL (seat 1) up to DOOR_TO_FARTHEST (seat 12),
+--    interpolated by seat index. A customer takes its seat slot the moment it spawns, starts its
+--    patience clock when it sits (spawn + walk time) and can be served only once seated.
+--  * Seats 1..STOOL_SEATS are counter stools served across the counter (STOOL_REACH studs from the
+--    pass, the player barely moves). Seats above that are booths / a high-top: the player walks
+--    TABLE_WALK studs each way (return trip included in the serve overhead). Customers take the
+--    lowest free seat, so stools fill first.
+--  * With the Robo-Waiter (AutoServer) the serve overhead is removed (the bot delivers).
+--  * Customers arrive every Orders.spawnInterval(rush) seconds, limited by the real seat count from
+--    the upgrades (Upgrades.seatCount); a full diner drops the arrival (the real game also queues
+--    MaxQueuedPerPlot customers; ignored here, which is slightly pessimistic). Seats stay occupied
+--    for EatSeconds after a serve.
+--  * The player serves the seated customer with the least remaining patience that they can still reach.
 --  * Rush Hour is the real hourly 4-minute window starting at a fixed fake UTC time (the join
 --    offset below). Free play starts at SessionStartOffsetSeconds into the hour.
 --  * No streak, no restock, no purchases other than greedy cheapest-affordable upgrades.
@@ -32,10 +42,16 @@ local CustomerConfig = require("../src/shared/Config/Customers")
 local Products = require("../src/shared/Config/Products")
 
 -- ── Sim constants (not game tuning) ─────────────────────────────────────────
-local WALK_SECONDS = 4 -- walk customer -> station and pick up the order
+local PICKUP_SECONDS = 3 -- hop between stations, collect the dish, check the next ticket
 local HOLD_SECONDS = 0.5 -- press-and-hold to start
 local FLIP_REACTION_SECONDS = 0.5 -- reaction time to the flip prompt (< perfectSeconds => Perfect)
-local SERVE_WALK_SECONDS = 4 -- carry the dish to the customer (0 with AutoServer)
+local SERVE_INTERACT_SECONDS = 0.5 -- the serve prompt itself
+local SPAWN_TO_DOOR = 40 -- studs, CustomerSpawn -> Door
+local DOOR_TO_STOOL = 18 -- studs, Door -> counter stool (seat 1)
+local DOOR_TO_FARTHEST = 33 -- studs, Door -> farthest seat (seat 12)
+local STOOL_SEATS = 5 -- seats 1..5 are counter stools
+local STOOL_REACH = 7 -- studs, kitchen pass -> stool (served across the counter)
+local TABLE_WALK = 16.5 -- studs, one way, counter end -> booth / high-top (15-18)
 local SEED = 20240601
 local SESSION_START_OFFSET = 1800 -- join half an hour into the hour
 local HORIZON_SECONDS = 24 * 3600
@@ -44,15 +60,29 @@ local EPOCH = 1700000000 - (1700000000 % Timings.RushHour.IntervalSeconds)
 -- Targets
 local FIRST_UPGRADE_MAX = 120
 local FIRST_CYCLE_MAX = 180
+local FIRST_COOK_MAX = 60 -- FirstCustomerDelay + walk to the first stool
 local LEGEND_MIN_LO = 2.5 -- "about 3-5 minutes", measured against a noisy smoothed rate
 local LEGEND_MIN_HI = 5.5
 local ALL_MIN = 6 * 3600
 local ALL_MAX = 8 * 3600
 
-type Customer = { arrive: number, patience: number, kind: any, legendaryId: string?, dish: any, freeAt: number? }
+type Customer = {
+	arrive: number,
+	seatedAt: number,
+	seat: number,
+	patience: number,
+	kind: any,
+	legendaryId: string?,
+	dish: any,
+	freeAt: number?,
+}
 type Result = {
 	purchases: { { id: string, level: number, at: number, earned: number, levels: { [string]: number } } },
 	firstCycleDone: number?,
+	arrivals: number,
+	bySeats: { [number]: { arrivals: number, dropped: number } },
+	dropped: number,
+	abandoned: number,
 	allAt: number?,
 	coinsEarned: number,
 	served: number,
@@ -68,17 +98,49 @@ local function makeRng(seed: number): () -> number
 	end
 end
 
-local function cycleSeconds(dishId: any, levels: { [string]: number }): number
+local WALK_SPEED = Timings.Customers.WalkSpeed
+
+-- Seconds from spawn until a customer is sitting in `seat` (1-based).
+local function arrivalWalkSeconds(seat: number): number
+	local frac = (seat - 1) / math.max(Timings.Seats.Max - 1, 1)
+	local doorToSeat = DOOR_TO_STOOL + (DOOR_TO_FARTHEST - DOOR_TO_STOOL) * frac
+	return (SPAWN_TO_DOOR + doorToSeat) / WALK_SPEED
+end
+
+-- Player time to hand a dish to `seat` and be ready for the next ticket (0 with the bot).
+local function serveSeconds(seat: number, levels: { [string]: number }): number
+	if Upgrades.hasAutoServer(levels) then
+		return 0
+	end
+	local studsRoundTrip = if seat <= STOOL_SEATS then 2 * STOOL_REACH else 2 * TABLE_WALK
+	return studsRoundTrip / WALK_SPEED + SERVE_INTERACT_SECONDS
+end
+
+local function cycleSeconds(dishId: any, seat: number, levels: { [string]: number }): number
 	local sched = Cooking.schedule(dishId, levels)
-	local serveWalk = if Upgrades.hasAutoServer(levels) then 0 else SERVE_WALK_SECONDS
-	return WALK_SECONDS + HOLD_SECONDS + sched.cookSeconds + FLIP_REACTION_SECONDS + sched.finishSeconds + serveWalk
+	return PICKUP_SECONDS
+		+ HOLD_SECONDS
+		+ sched.cookSeconds
+		+ FLIP_REACTION_SECONDS
+		+ sched.finishSeconds
+		+ serveSeconds(seat, levels)
 end
 
 local function simulate(hasPass: boolean): Result
 	local rng = makeRng(SEED)
 	local levels: { [string]: number } = {}
-	local result: Result =
-		{ purchases = {}, firstCycleDone = nil, allAt = nil, coinsEarned = 0, served = 0, legendary = 0 }
+	local result: Result = {
+		purchases = {},
+		firstCycleDone = nil,
+		arrivals = 0,
+		bySeats = {},
+		dropped = 0,
+		abandoned = 0,
+		allAt = nil,
+		coinsEarned = 0,
+		served = 0,
+		legendary = 0,
+	}
 	local dishes: { any } = {}
 	for _, def in Stations.Defs do
 		table.insert(dishes, def.dishId)
@@ -97,27 +159,56 @@ local function simulate(hasPass: boolean): Result
 	local seated: { Customer } = {}
 	local nextArrival = Timings.Customers.FirstCustomerDelaySeconds
 
+	-- Remove customers who finished eating or ran out of patience by time `at`.
+	local function reap(at: number)
+		for i = #seated, 1, -1 do
+			local c = seated[i]
+			local free = c.freeAt
+			if free ~= nil and free <= at then
+				table.remove(seated, i)
+			elseif free == nil and c.seatedAt + c.patience <= at then
+				result.abandoned += 1
+				table.remove(seated, i)
+			end
+		end
+	end
+
 	local function admit(upTo: number)
 		while nextArrival <= upTo do
 			local at = nextArrival
-			for i = #seated, 1, -1 do
-				local c = seated[i]
-				local free = c.freeAt
-				if (free ~= nil and free <= at) or (free == nil and c.arrive + c.patience <= at) then
-					table.remove(seated, i)
+			reap(at)
+			result.arrivals += 1
+			local seatCount = Upgrades.seatCount(levels)
+			local taken: { [number]: boolean } = {}
+			for _, c in seated do
+				taken[c.seat] = true
+			end
+			local bucket = result.bySeats[seatCount] or { arrivals = 0, dropped = 0 }
+			result.bySeats[seatCount] = bucket
+			bucket.arrivals += 1
+			local seat = 0
+			for i = 1, seatCount do
+				if not taken[i] then
+					seat = i
+					break
 				end
 			end
-			if #seated < Upgrades.seatCount(levels) then
+			if seat > 0 then
 				local rush = isRush(at)
 				local kind, legendaryId = Orders.rollKind(rng, rush)
 				table.insert(seated, {
 					arrive = at,
+					seatedAt = at + arrivalWalkSeconds(seat),
+					seat = seat,
 					patience = Orders.patienceSeconds(kind, legendaryId, levels),
 					kind = kind,
 					legendaryId = legendaryId,
 					dish = Orders.pickDish(rng, kind, legendaryId, dishes),
 					freeAt = nil,
 				})
+			else
+				result.dropped += 1
+				bucket.dropped += 1
 			end
 			nextArrival = at + Orders.spawnInterval(isRush(at))
 		end
@@ -154,31 +245,30 @@ local function simulate(hasPass: boolean): Result
 
 	while t < HORIZON_SECONDS and result.allAt == nil do
 		admit(t)
-		-- candidates: waiting (not eating) customers we can still finish in time
+		reap(t)
+		-- candidates: seated, waiting (not eating) customers we can still finish in time
 		local pick: Customer? = nil
 		local pickDeadline = math.huge
+		local nextEvent = nextArrival
 		for _, c in seated do
 			if c.freeAt == nil then
-				local deadline = c.arrive + c.patience
-				if deadline > t + cycleSeconds(c.dish, levels) and deadline < pickDeadline then
-					pick, pickDeadline = c, deadline
+				if c.seatedAt > t then
+					nextEvent = math.min(nextEvent, c.seatedAt)
+				else
+					local deadline = c.seatedAt + c.patience
+					if deadline > t + cycleSeconds(c.dish, c.seat, levels) and deadline < pickDeadline then
+						pick, pickDeadline = c, deadline
+					end
 				end
 			end
 		end
 		if pick == nil then
-			-- idle until something happens (next arrival), also drop expired
-			for i = #seated, 1, -1 do
-				local c = seated[i]
-				if c.freeAt == nil and c.arrive + c.patience <= t then
-					table.remove(seated, i)
-				end
-			end
-			t = math.max(nextArrival, t + 0.01)
+			t = math.max(nextEvent, t + 0.01)
 			continue
 		end
 		local customer: Customer = pick
-		t += cycleSeconds(customer.dish, levels)
-		local wait = t - customer.arrive
+		t += cycleSeconds(customer.dish, customer.seat, levels)
+		local wait = t - customer.seatedAt
 		local payout = Economy.computePayout({
 			dishId = customer.dish,
 			kind = customer.kind,
@@ -408,6 +498,43 @@ print(
 )
 
 local failures = {}
+local firstCook = Timings.Customers.FirstCustomerDelaySeconds + arrivalWalkSeconds(1)
+print(string.format("New player can start cooking at %.1fs (first customer sits on stool 1)", firstCook))
+if firstCook > FIRST_COOK_MAX then
+	table.insert(failures, `a new player must be cooking within {FIRST_COOK_MAX}s`)
+end
+do
+	local allLevels: { [string]: number } = {}
+	for id, def in UpgradeConfig.Defs do
+		allLevels[id] = def.maxLevel
+	end
+	if Upgrades.seatCount(allLevels) ~= Timings.Seats.Max then
+		table.insert(failures, `maxed Seating must reach Timings.Seats.Max ({Timings.Seats.Max}) seats`)
+	end
+end
+print(
+	string.format(
+		"Diner flow (free): %d arrivals, %.0f%% turned away (full), %.0f%% of seated customers walked out",
+		free.arrivals,
+		free.dropped / math.max(free.arrivals, 1) * 100,
+		free.abandoned / math.max(free.arrivals - free.dropped, 1) * 100
+	)
+)
+for n = Timings.Seats.Base, Timings.Seats.Max do
+	local b = free.bySeats[n]
+	if b ~= nil then
+		print(
+			string.format("  %2d seats: %5d arrivals, %.0f%% turned away", n, b.arrivals, b.dropped / b.arrivals * 100)
+		)
+	end
+end
+print("Seats by stage: " .. (function()
+	local parts = {}
+	for _, st in stages do
+		table.insert(parts, tostring(Upgrades.seatCount(st.levels)))
+	end
+	return table.concat(parts, " ")
+end)())
 local maxGap, gapAt = 0, 0
 do
 	local prev = 0
@@ -436,8 +563,8 @@ if free.allAt ~= nil and pass.allAt ~= nil then
 		table.insert(failures, "TipsX2 pass should reach all 13 in 60-75% of free time")
 	end
 end
-if largestPack > totalCost * 0.20 then
-	table.insert(failures, "largest coin pack must be <= 20% of total upgrade cost")
+if largestPack > totalCost * 0.18 then
+	table.insert(failures, "largest coin pack must be under 18% of total upgrade cost")
 end
 if streakMin[1] < 2 or streakMin[1] > 5 then
 	table.insert(failures, "streak day 1 should be worth 2-5 minutes of income")

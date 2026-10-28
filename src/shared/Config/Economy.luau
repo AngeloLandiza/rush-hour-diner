@@ -40,13 +40,13 @@ local Economy = {
 
 	Offline = {
 		CapSeconds = 8 * 3600,
-		BaseCoinsPerMinute = 4, -- offline rate before upgrades
+		BaseCoinsPerMinute = 4.5, -- offline rate before upgrades
 		CoinsPerMinutePerUpgradeLevel = 0.6,
 		AutoChefMultiplier = 1, -- Auto-Chef pass in-game AFK income = offline rate × this
 	},
 
 	-- Daily streak rewards for days 1..7 (day 7 then cycles back to 1).
-	StreakRewards = { 200, 250, 300, 400, 500, 600, 800 },
+	StreakRewards = { 230, 280, 340, 450, 560, 680, 900 },
 }
 
 return Economy

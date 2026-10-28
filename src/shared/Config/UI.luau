@@ -213,17 +213,17 @@ local UI = {
 	-- Gameplay camera (studs / degrees). The intro frames the player's own diner on spawn, respawn and
 	-- plot change, then hands the same angle to the Custom camera. Plot-local +Z faces the street.
 	Camera = {
-		Zoom = 24, -- default orbit distance (landscape / desktop)
-		PortraitZoomMax = 32, -- narrow screens zoom out until FrameHalfWidth fits, up to this
-		FrameHalfWidth = 11, -- studs either side of the player that must stay in view
-		ZoomMin = 10,
-		ZoomMax = 45,
-		PitchDegrees = 38, -- look-down angle of the default orbit
+		Zoom = 36, -- default orbit distance (landscape / desktop)
+		PortraitZoomMax = 46, -- narrow screens zoom out until FrameHalfWidth fits, up to this
+		FrameHalfWidth = 16, -- studs either side of the player that must stay in view (counter is 40 wide)
+		ZoomMin = 12,
+		ZoomMax = 65, -- far enough to take in a whole tier-2 diner and patio
+		PitchDegrees = 42, -- look-down angle of the default orbit
 		YawDegrees = 20, -- 3/4 offset from the plot's street axis toward plot +X
-		IntroZoom = 50, -- establishing shot from over the street
-		IntroPitchDegrees = 26,
+		IntroZoom = 65, -- establishing shot from over the front lawn
+		IntroPitchDegrees = 30,
 		IntroYawDegrees = -18,
-		IntroFocus = { X = 0, Y = 4, Z = -6 }, -- plot-local point the establishing shot looks at
+		IntroFocus = { X = 0, Y = 4, Z = -18 }, -- plot-local point the establishing shot looks at
 		SubjectHeight = 1.5, -- Custom camera focus above the HumanoidRootPart (R15 head offset)
 		ArriveDistance = 20, -- character counts as "on the plot" within this many studs of Spawn
 		PollSeconds = 0.25, -- re-check the intro conditions this often (the teleport has no signal)
