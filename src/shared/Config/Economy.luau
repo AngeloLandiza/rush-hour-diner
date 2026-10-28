@@ -3,6 +3,15 @@
 local Economy = {
 	StartingCoins = 0,
 
+	-- Calendar constants for Logic/Schedule and Logic/Streak.
+	Time = {
+		SecondsPerMinute = 60,
+		SecondsPerDay = 86400,
+		SecondsPerHour = 3600,
+		DaysPerWeek = 7,
+		EpochWeekday = 4, -- 1970-01-01 was a Thursday (0 = Sunday)
+	},
+
 	Tip = {
 		BaseFraction = 0.2, -- tip = base × BaseFraction × speedFactor (before multipliers)
 		FastFraction = 0.25, -- serve within this fraction of patience = max speed factor

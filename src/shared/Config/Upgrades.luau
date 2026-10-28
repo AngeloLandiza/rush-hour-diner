@@ -11,7 +11,7 @@ local Upgrades = {
 			description = "Burgers cook faster.",
 			order = 1,
 			maxLevel = 1,
-			costs = { 50 },
+			costs = { 60 },
 			effect = { kind = "StationSpeed", stationId = "Grill", multiplierPerLevel = 0.5 },
 		},
 		FryerSpeed = {
@@ -20,7 +20,7 @@ local Upgrades = {
 			description = "Fries cook faster.",
 			order = 2,
 			maxLevel = 1,
-			costs = { 150 },
+			costs = { 350 },
 			effect = { kind = "StationSpeed", stationId = "Fryer", multiplierPerLevel = 0.5 },
 		},
 		OvenSpeed = {
@@ -29,7 +29,7 @@ local Upgrades = {
 			description = "Pizzas bake faster.",
 			order = 3,
 			maxLevel = 1,
-			costs = { 400 },
+			costs = { 900 },
 			effect = { kind = "StationSpeed", stationId = "Oven", multiplierPerLevel = 0.5 },
 		},
 		SodaSpeed = {
@@ -38,7 +38,7 @@ local Upgrades = {
 			description = "Drinks pour faster.",
 			order = 4,
 			maxLevel = 1,
-			costs = { 100 },
+			costs = { 200 },
 			effect = { kind = "StationSpeed", stationId = "Soda", multiplierPerLevel = 0.5 },
 		},
 		Patience = {
@@ -47,7 +47,7 @@ local Upgrades = {
 			description = "Customers wait longer before leaving.",
 			order = 5,
 			maxLevel = 1,
-			costs = { 300 },
+			costs = { 900 },
 			effect = { kind = "Patience", bonusPerLevel = 0.4 },
 		},
 		Seating = {
@@ -56,7 +56,7 @@ local Upgrades = {
 			description = "One more customer at a time.",
 			order = 6,
 			maxLevel = 3,
-			costs = { 200, 800, 2500 },
+			costs = { 500, 2000, 6500 },
 			effect = { kind = "Seats", seatsPerLevel = 1 },
 		},
 		Tips = {
@@ -65,7 +65,7 @@ local Upgrades = {
 			description = "Customers tip more.",
 			order = 7,
 			maxLevel = 2,
-			costs = { 600, 3000 },
+			costs = { 1500, 8000 },
 			effect = { kind = "TipMultiplier", bonusPerLevel = 0.25 },
 		},
 		AutoServer = {
@@ -74,7 +74,7 @@ local Upgrades = {
 			description = "A bot carries ready dishes to waiting customers.",
 			order = 8,
 			maxLevel = 1,
-			costs = { 5000 },
+			costs = { 16000 },
 			effect = { kind = "AutoServer" },
 		},
 		Decor = {
@@ -83,7 +83,7 @@ local Upgrades = {
 			description = "A fancier diner. Customers tip a bigger percentage.",
 			order = 9,
 			maxLevel = 2,
-			costs = { 1500, 8000 },
+			costs = { 3500, 24000 },
 			effect = { kind = "Decor", tipPctPerLevel = 0.1 },
 		},
 	} :: { [Types.UpgradeId]: Types.UpgradeDef },

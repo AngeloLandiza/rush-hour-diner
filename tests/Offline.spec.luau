@@ -1,0 +1,41 @@
+--!strict
+local TestLib = require("../tools/testlib")
+local describe, it, expect = TestLib.describe, TestLib.it, TestLib.expect
+
+local Offline = require("../src/shared/Logic/Offline")
+local EconomyConfig = require("../src/shared/Config/Economy")
+
+local cfg = EconomyConfig.Offline
+
+describe("Offline", function()
+	it("coinsPerMinute grows with upgrade levels", function()
+		expect(Offline.coinsPerMinute({})).toBe(cfg.BaseCoinsPerMinute)
+		local rate = Offline.coinsPerMinute({ GrillSpeed = 1, Seating = 2 })
+		expect(rate).toBe(cfg.BaseCoinsPerMinute + 3 * cfg.CoinsPerMinutePerUpgradeLevel)
+	end)
+	it("pending accrues per minute and floors", function()
+		expect(Offline.pending(1000, 1000, {})).toBe(0)
+		expect(Offline.pending(1000, 1000 + 600, {})).toBe(10 * cfg.BaseCoinsPerMinute)
+		expect(Offline.pending(1000, 1000 + 20, {})).toBe(0)
+	end)
+	it("caps at the offline cap", function()
+		local atCap = Offline.pending(0, cfg.CapSeconds, {})
+		expect(Offline.pending(0, cfg.CapSeconds * 10, {})).toBe(atCap)
+		expect(Offline.pending(0, cfg.CapSeconds + 1, {})).toBe(atCap)
+		expect(Offline.pending(0, cfg.CapSeconds - 600, {})).toBeLessThan(atCap)
+	end)
+	it("never goes negative on clock skew", function()
+		expect(Offline.pending(5000, 1000, {})).toBe(0)
+	end)
+	it("fullRestock equals a capped pending", function()
+		local levels = { Tips = 2 }
+		expect(Offline.fullRestock(levels)).toBe(Offline.pending(0, cfg.CapSeconds, levels))
+	end)
+	it("autoChefIncome scales with seconds and is an integer", function()
+		expect(Offline.autoChefIncome({}, 0)).toBe(0)
+		expect(Offline.autoChefIncome({}, -5)).toBe(0)
+		local v = Offline.autoChefIncome({}, 3600)
+		expect(v).toBe(math.floor(60 * cfg.BaseCoinsPerMinute * cfg.AutoChefMultiplier))
+		expect(v % 1).toBe(0)
+	end)
+end)
