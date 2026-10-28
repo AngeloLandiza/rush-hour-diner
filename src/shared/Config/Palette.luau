@@ -8,6 +8,12 @@ local Hex: { [string]: string } = {
 	Ink = "1D3557",
 	NeonPink = "FF5DA2",
 	White = "FFFFFF",
+	-- Tints derived from the six brand colors (shading and secondary surfaces only).
+	CreamShade = "EAD7B5", -- cream, darkened
+	InkSoft = "34527F", -- ink, lightened
+	KetchupDeep = "B22A36", -- ketchup, darkened
+	MintDeep = "1E968B", -- mint, darkened
+	MustardDeep = "D98F00", -- mustard, darkened
 }
 
 local Color: { [string]: Color3 } = {}

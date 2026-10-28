@@ -15,7 +15,7 @@
 --       Stations/
 --         Slot_<k>/  (Model, attrs PlotId, Slot, StationId)   k = 1..MaxStationSlots
 --           Interact             Part: ProximityPrompt parent; the station's interaction point
---           FX                   Attachment for steam/sizzle/fire emitters
+--             FX                 Attachment for steam/sizzle/fire emitters (find with FindFirstChild(name, true))
 --       Seats/
 --         Seat_<k>  (Part, attr SeatIndex)  k = 1..MaxSeats; Seat attachment "Sit" faces the table
 --       Shell/                   walls/roof/decor props, rebuilt by MapBuilder.ApplyDecor
