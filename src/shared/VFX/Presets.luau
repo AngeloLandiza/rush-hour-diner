@@ -1,5 +1,5 @@
 --!strict
--- ParticleEmitter presets: steam, sizzle, fire, coin burst, tip explosion. Owner: agent E.
+-- ParticleEmitter presets: steam, sizzle, fire, smoke, ding, coin burst, tip explosion. Owner: agent E.
 -- Used by the server (station FX) and the client FXController (coin burst / tip explosion).
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
@@ -10,7 +10,15 @@ local C = Palette.Color
 
 local Presets = {}
 
-export type PresetName = "Steam" | "Sizzle" | "Fire" | "CoinBurst" | "TipExplosion" | "LegendarySparkle"
+export type PresetName =
+	"Steam"
+	| "Sizzle"
+	| "Fire"
+	| "Smoke"
+	| "Ding"
+	| "CoinBurst"
+	| "TipExplosion"
+	| "LegendarySparkle"
 
 local TEX_SPARKLES = "rbxasset://textures/particles/sparkles_main.dds"
 local TEX_SMOKE = "rbxasset://textures/particles/smoke_main.dds"
@@ -82,6 +90,38 @@ local DEFS: { [PresetName]: Def } = {
 		lightEmission = 1,
 		drag = 1,
 		rotSpeed = { -90, 90 },
+	},
+	-- Thick dark smoke rising off burnt food.
+	Smoke = {
+		texture = TEX_SMOKE,
+		color = ColorSequence.new(C.Smoke, C.Charcoal),
+		size = { 1.2, 4 },
+		transparency = { 0.25, 1 },
+		lifetime = { 1.6, 2.6 },
+		speed = { 2, 4 },
+		spread = 15,
+		rate = 10,
+		burst = 10,
+		acceleration = Vector3.new(0, 3, 0),
+		lightEmission = 0,
+		drag = 0.8,
+		rotSpeed = { -30, 30 },
+	},
+	-- Gentle golden "ding" sparkles floating up off finished food.
+	Ding = {
+		texture = TEX_SPARKLES,
+		color = ColorSequence.new(C.Mustard, C.CreamLight),
+		size = { 0.5, 0 },
+		transparency = { 0, 0.4 },
+		lifetime = { 0.8, 1.3 },
+		speed = { 1.5, 3 },
+		spread = 35,
+		rate = 7,
+		burst = 16,
+		acceleration = Vector3.new(0, 1, 0),
+		lightEmission = 1,
+		drag = 0.6,
+		rotSpeed = { -120, 120 },
 	},
 	CoinBurst = {
 		texture = TEX_SPARKLES,
@@ -163,6 +203,11 @@ function Presets.Create(name: PresetName, parent: Instance): ParticleEmitter
 	configure(emitter, DEFS[name], 1)
 	emitter.Parent = parent
 	return emitter
+end
+
+-- The continuous emission rate a Create()d emitter of this preset uses when enabled.
+function Presets.DefaultRate(name: PresetName): number
+	return DEFS[name].rate
 end
 
 -- One-shot burst. scale (default 1) multiplies count, size and speed: a bigger tip is a bigger explosion.

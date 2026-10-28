@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Palette = require(ReplicatedStorage.Shared.Config.Palette)
 local Build = require("./Build")
 local Layout = require("./Layout")
+local Yard = require("./Yard")
 
 local C = Palette.Color
 local F = Layout.FloorY
@@ -122,21 +123,13 @@ local function plankFloor(ctx: Ctx, w: number, z0: number, z1: number, planks: n
 	end
 end
 
--- Classic diner checkerboard: a cream floor with ink tiles on every other cell.
+-- Classic diner checkerboard: a cream floor with slate tiles on every other cell. The tiles are painted
+-- on with a SurfaceGui (one part instead of 26), which keeps the max-decor part budget for the yard.
 local function checkerFloor(ctx: Ctx)
 	local w, d = WX * 2 - 1, DEPTH - 1
-	box(ctx, "Floor", Vector3.new(w, 0.1, d), 0, F + 0.05, MIDZ, C.CreamLight)
+	local floor = box(ctx, "Floor", Vector3.new(w, 0.1, d), 0, F + 0.05, MIDZ, C.CreamLight)
 	local tile = 5.8
-	local cols, rows = math.floor(w / tile), math.floor(d / tile)
-	local x0 = -(cols - 1) * tile / 2
-	local z0 = MIDZ - (rows - 1) * tile / 2
-	for r = 0, rows - 1 do
-		for c = 0, cols - 1 do
-			if (r + c) % 2 == 0 then
-				box(ctx, "Tile", Vector3.new(tile, 0.04, tile), x0 + c * tile, F + 0.12, z0 + r * tile, C.Slate)
-			end
-		end
-	end
+	Build.Checker(floor, Enum.NormalId.Top, math.round(w / tile), math.round(d / tile), C.Slate)
 end
 
 local function pottedPlant(ctx: Ctx, x: number, z: number, scale: number)
@@ -408,7 +401,7 @@ local function tierStand(ctx: Ctx)
 	-- Menu board is 18 wide, 3.6 tall (frame) centred at F + 8.2: keep bulbs off it, with 1 stud margin.
 	local boardAvoid = { x0 = -10, x1 = 10, y0 = F + 8.2 - 2.8, y1 = F + 8.2 + 2.8 }
 	stringLights(ctx, Vector3.new(-(WX - 1), edgeY, -14.4), Vector3.new(WX - 1, edgeY, -14.4), 14, 0.5, 4, boardAvoid)
-	-- Props: produce crates, potted plants, an OPEN chalkboard by the path
+	-- Props: produce crates and potted plants (the yard adds the menu A-frame)
 	for i, x in { -26.5, 26.5 } do
 		box(ctx, "Crate", Vector3.new(2.4, 1.6, 2), x, F + 0.8, -3, C.WoodLight)
 		box(ctx, "CrateSlat", Vector3.new(2.5, 0.25, 2.1), x, F + 1.1, -3, C.Wood)
@@ -424,18 +417,6 @@ local function tierStand(ctx: Ctx)
 		end
 		pottedPlant(ctx, x, 3, 1)
 	end
-	for _, side in { -1, 1 } do
-		Build.Wedge(
-			ctx.shell,
-			"ChalkBoard",
-			Vector3.new(2.4, 3, 0.9),
-			at(ctx, 6.5, F + 1.5, ZF + 2 + side * 0.45) * CFrame.Angles(0, if side > 0 then math.pi else 0, 0),
-			C.WoodDark
-		)
-	end
-	local chalk = box(ctx, "Chalk", Vector3.new(2, 1.6, 0.1), 6.5, F + 1.5, ZF + 2.5, C.Charcoal)
-	chalk.CFrame = chalk.CFrame * CFrame.Angles(-0.29, 0, 0)
-	Build.Text(chalk, "OPEN", C.Cream)
 end
 
 -- Tier 1: a small diner. Plank floor, cream walls, facade with windows and awnings, a marquee,
@@ -554,6 +535,7 @@ function Shells.Build(shell: Folder, plotCF: CFrame, accent: Color3, tier: numbe
 	else
 		tierBig(ctx)
 	end
+	Yard.Build(shell, plotCF, accent, tier)
 end
 
 return Shells

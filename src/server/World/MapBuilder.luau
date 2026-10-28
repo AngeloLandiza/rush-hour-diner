@@ -4,6 +4,7 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Art = require(ReplicatedStorage.Shared.Config.Art)
 local Palette = require(ReplicatedStorage.Shared.Config.Palette)
 local Stations = require(ReplicatedStorage.Shared.Config.Stations)
 local Timings = require(ReplicatedStorage.Shared.Config.Timings)
@@ -13,6 +14,7 @@ local Build = require("./Build")
 local Layout = require("./Layout")
 local PropBuilder = require("./PropBuilder")
 local Shells = require("./Shells")
+local Yard = require("./Yard")
 
 local C = Palette.Color
 local P = WorldSchema.Parts
@@ -47,9 +49,12 @@ local function getOrCreateFolder(name: string): Folder
 end
 
 -- Show or hide a model: hidden = fully transparent, non-colliding, prompts disabled. Reversible.
+-- Station food parts (Art.Attributes.Managed) are skipped: StationVisuals hides them with the slot.
 local function setVisible(root: Instance, visible: boolean)
 	local function apply(inst: Instance)
-		if inst:IsA("BasePart") then
+		if inst:IsA("BasePart") and inst:GetAttribute(Art.Attributes.Managed) == true then
+			return
+		elseif inst:IsA("BasePart") then
 			if not visible then
 				if inst:GetAttribute(ORIG_T) == nil then
 					inst:SetAttribute(ORIG_T, inst.Transparency)
@@ -356,7 +361,8 @@ local function buildCounter(model: Model, cf: CFrame, accent: Color3): BasePart
 	return counter
 end
 
--- Low hedges along the street edge of the lot (with a gap for the path) and a paved walkway.
+-- Low hedges along the street edge of the lot (with a gap for the path) and a patterned brick path.
+-- The rest of the yard (tables, lamps, menu, queue rope) is built per decor tier by Yard via Shells.
 local function buildFrontYard(model: Model, cf: CFrame)
 	local edgeZ = Layout.PlotSize.Z / 2 - 1
 	local pathW = Layout.DoorSize.X + 2
@@ -375,14 +381,7 @@ local function buildFrontYard(model: Model, cf: CFrame)
 		cf * CFrame.new(0, F + 0.02, lawnZ0 + lawnD / 2),
 		C.Grass
 	)
-	local pathLen = Layout.PlotSize.Z / 2 - Layout.WallFrontZ
-	Build.Part(
-		model,
-		"Path",
-		Vector3.new(pathW, 0.08, pathLen),
-		cf * CFrame.new(0, F + 0.04, Layout.WallFrontZ + pathLen / 2),
-		C.Concrete
-	)
+	Yard.Path(model, cf, Layout.WallFrontZ, Layout.PlotSize.Z / 2, true)
 end
 
 local function buildSlot(stationsFolder: Folder, plotCF: CFrame, plotId: number, k: number)

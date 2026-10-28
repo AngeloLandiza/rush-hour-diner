@@ -5,6 +5,13 @@
 -- the six brand colors are ACCENTS only (awning stripes, trim bands, cushions, signs, knobs).
 -- Neon is reserved for signage, bulbs and glow strips. Metals and wood ground the props.
 local Hex: { [string]: string } = {
+	-- Customer skin tones (inclusive range)
+	SkinPorcelain = "FCE3CF",
+	SkinLight = "F1C7A5",
+	SkinTan = "D9A273",
+	SkinMedium = "B87A4B",
+	SkinBrown = "8D5A3A",
+	SkinDeep = "5E3B26",
 	-- The six spec colors
 	Cream = "FFF4E0",
 	Ketchup = "E63946",
@@ -27,6 +34,9 @@ local Hex: { [string]: string } = {
 	NightInk = "14213D", -- ink, darkened for night ambient
 	PinkGlow = "FFE3F0", -- near-white neon pink, for subtle tints
 	DuskViolet = "5A3A7A", -- rush hour outdoor ambient
+	NightHaze = "4B4C8F", -- rush hour atmosphere: blue-violet night air (no pink)
+	NightIndigo = "232552", -- rush hour atmosphere decay (horizon)
+	NightTint = "ECEBFF", -- rush hour color correction: cool lavender-white
 	-- Warm neutrals (dominant surfaces)
 	Linen = "F3E6CF", -- walls, secondary cream
 	Sand = "E2CFAE", -- patio, sidewalk joints
@@ -57,6 +67,17 @@ local Hex: { [string]: string } = {
 	Patty = "6B3A2A",
 	Lettuce = "7BC950",
 	Ember = "FF8A2B",
+	-- Food cook states (StationVisuals tweens raw → cooked; Char = burnt)
+	PattyRaw = "E0717C", -- pink-red raw patty
+	PattyCooked = "7B4530", -- grilled brown
+	Char = "2A2220", -- burnt, charred black
+	FriesRaw = "F6E7C1", -- pale raw fries
+	FriesGold = "F2B33D", -- golden fried
+	DoughRaw = "F4E2BC", -- raw pizza crust
+	PizzaBaked = "F0A13A", -- melted, bubbling cheese
+	SodaLiquid = "D63A55", -- cherry soda
+	SodaFlat = "5E4B45", -- flat, ruined soda
+	Smoke = "4A4550", -- dark burnt smoke
 	-- Atmosphere and lighting
 	DayAmbient = "7A6E6A", -- warm grey indoor fill
 	DayOutdoor = "A49A93", -- warm sky fill

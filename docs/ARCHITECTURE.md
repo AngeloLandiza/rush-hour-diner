@@ -38,6 +38,7 @@ Server (`src/server/init.server.luau`): `Net.setupServer()`, then `Init()` of ea
 5. LeaderboardService
 6. PropBuilder
 7. MapBuilder (builds the world in `Init` using PropBuilder, so later services can find plots in their `Init`)
+   - StationVisuals (World) boots right after MapBuilder. It drives station food states and VFX from the `Phase`/`Quality` slot attributes.
 8. LightingDirector
 9. AudioDirector
 10. PlotService

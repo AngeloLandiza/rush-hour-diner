@@ -46,6 +46,25 @@ local Layout = {
 	VIPPos = Vector3.new(-20, 0, 14),
 	LawnStartZ = 12, -- front lawn from here to the street edge of the lot
 
+	-- Front yard props (World/Yard), mirrored on both sides of the path. Everything stays outside the
+	-- customer walk: CustomerSpawn → Door runs down the path (x = 0), Door → seats stays at z < DoorZ.
+	Yard = {
+		PathBorder = 0.6, -- cream border each side of the brick path
+		RunnerWidth = 2.6, -- checker inlay down the middle of the path
+		RunnerCell = 1.3,
+		StandPathZ0 = -1, -- tier 0: brick path continues from the stand deck to the door line
+		TableX = 13,
+		TableZ = 9,
+		RopeX = 5.7, -- queue rope stanchions just outside the path edges
+		RopeZ = { 9.6, 15.4 },
+		LampX = 6.4,
+		LampZ = 22.4,
+		MenuPos = Vector3.new(-8.5, 0, 20.6), -- chalkboard A-frame by the path mouth
+		PlanterX = 27.3, -- tier 0 corner planters (tiers 1-2 have facade planters)
+		PlanterZ = 10.5,
+		ScooterPos = Vector3.new(21.5, 0, 20.8), -- tier 2 delivery scooter
+	},
+
 	-- Shell
 	WallX = 29.5,
 	WallBackZ = -24.5,

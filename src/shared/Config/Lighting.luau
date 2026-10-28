@@ -1,6 +1,6 @@
 --!strict
 -- Lighting presets. Owner: agent E. Colors are Palette keys; LightingDirector converts them.
--- Day: warm, soft afternoon sun with long-ish shadows. Rush: neon dusk; pink lives in the Atmosphere only.
+-- Day: warm, soft afternoon sun with long-ish shadows. Rush: blue-violet night; pink comes only from neon parts and bulbs, never from fog.
 export type Preset = {
 	ClockTime: number,
 	Brightness: number,
@@ -44,8 +44,8 @@ local Lighting = {
 			EnvironmentDiffuseScale = 0.4,
 			EnvironmentSpecularScale = 0.6,
 			ShadowSoftness = 0.3,
-			Atmosphere = { Density = 0.32, Haze = 1.6, Glare = 0.4, Color = "NeonPink", Decay = "NightInk" },
-			ColorCorrection = { Brightness = 0.02, Contrast = 0.12, Saturation = 0.15, TintColor = "PinkGlow" },
+			Atmosphere = { Density = 0.3, Haze = 0.8, Glare = 0.2, Color = "NightHaze", Decay = "NightIndigo" },
+			ColorCorrection = { Brightness = 0.02, Contrast = 0.12, Saturation = 0.12, TintColor = "NightTint" },
 			Bloom = { Intensity = 0.55, Size = 26, Threshold = 1.4 },
 			Neon = { Lit = true, LightScale = 0.45 },
 		},

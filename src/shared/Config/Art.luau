@@ -16,6 +16,30 @@ local Art = {
 	Attributes = {
 		-- On RushNeon parts: the light's brightness at full Rush (lights are children of the part).
 		LitBrightness = "LitBrightness",
+		-- On station food parts (PropBuilder builds them hidden; World/StationVisuals drives them).
+		-- MapBuilder's slot show/hide skips Managed parts: StationVisuals owns their visibility.
+		Managed = "VisManaged",
+		RawColor = "VisRaw", -- Color3 while raw (Cooking)
+		CookedColor = "VisCooked", -- Color3 when done (Ready)
+		BurntColor = "VisBurnt", -- Color3 when Burnt
+		ShownTransparency = "VisShown", -- Transparency while shown (glass cup < 1)
+		AfterFlip = "VisAfterFlip", -- true: appears only after the flip (cheese)
+		Liquid = "VisLiquid", -- true: fills (height tween) during Finishing
+	},
+	-- World/StationVisuals timings and looks (seconds, studs, light units).
+	StationVisuals = {
+		FlipCookFraction = 0.35, -- how far raw → cooked the food gets before the flip
+		FlipBounceHeight = 0.45,
+		FlipBounceSeconds = 0.22,
+		CuePulseSeconds = 0.3, -- worktop neon pulse while NeedsFlip / Burnt
+		ReadyBobHeight = 0.18,
+		ReadyBobSeconds = 0.9,
+		BurnSeconds = 0.6, -- color tween to char
+		LiquidStartFraction = 0.08,
+		CueLight = { range = 9, brightness = 1.6 },
+		ReadyLight = { range = 9, brightness = 2, perfectBrightness = 3.2 },
+		WarnLight = { range = 12, brightness = 3 },
+		PerfectDingRateScale = 2,
 	},
 	-- Generated hero meshes (station, dish and bot props). Keys match Types.StationId / Types.DishId.
 	-- Generated with Studio's generate_mesh (textured MeshParts published to the place owner's inventory).

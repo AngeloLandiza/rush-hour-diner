@@ -20,6 +20,7 @@ local RushHourService = require(Services.RushHourService)
 local PurchaseService = require(Services.PurchaseService)
 local LeaderboardService = require(Services.LeaderboardService)
 local MapBuilder = require(World.MapBuilder)
+local StationVisuals = require(World.StationVisuals)
 local PropBuilder = require(World.PropBuilder)
 local LightingDirector = require(World.LightingDirector)
 local AudioDirector = require(World.AudioDirector)
@@ -35,6 +36,7 @@ local BOOT_ORDER: { { name: string, module: Module } } = {
 	{ name = "LeaderboardService", module = LeaderboardService },
 	{ name = "PropBuilder", module = PropBuilder },
 	{ name = "MapBuilder", module = MapBuilder },
+	{ name = "StationVisuals", module = StationVisuals },
 	{ name = "LightingDirector", module = LightingDirector },
 	{ name = "AudioDirector", module = AudioDirector },
 	{ name = "PlotService", module = PlotService },

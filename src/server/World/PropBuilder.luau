@@ -18,6 +18,16 @@ local NEON = Enum.Material.Neon
 
 local PropBuilder = {}
 
+-- Names StationVisuals looks up inside a station / slot model.
+PropBuilder.Visual = {
+	Folder = "Visuals", -- Folder holding the hidden food parts
+	Cue = "Worktop", -- the worktop rim turns neon for NeedsFlip / Burnt
+	FX = "VisFX", -- Attachment (on the worktop) at the food: cook / burn / ding emitters
+	Light = "StatusLight", -- PointLight on the worktop: cue, ready glow, burnt warning
+}
+
+local VA = Art.Attributes
+
 local CAB_W, CAB_H, CAB_D = 8, 3.2, 5.5
 local CAB_Y = 0.3 -- cabinet bottom (on top of the plinth)
 local TOP_Y = CAB_Y + CAB_H
@@ -75,14 +85,20 @@ end
 -- ── Stations ─────────────────────────────────────────────────────────────────
 
 -- Shared base: plinth (PrimaryPart), stainless cabinet with two doors, worktop, colored fascia with
--- knobs, and the Interact part with the FX attachment.
-local function baseStation(model: Model, fascia: Color3, knobCount: number, fxHeight: number)
+-- knobs, and the Interact part with the FX attachment. Returns the worktop.
+local function baseStation(model: Model, fascia: Color3, knobCount: number, fxHeight: number): Part
 	local plinth =
 		Build.Part(model, "Plinth", Vector3.new(CAB_W - 0.4, CAB_Y, CAB_D - 0.4), cf(0, CAB_Y / 2, 0), C.Charcoal)
 	model.PrimaryPart = plinth
 	plinth.PivotOffset = CFrame.new(0, -CAB_Y / 2, 0) -- pivot at floor level
 	Build.Part(model, "Cabinet", Vector3.new(CAB_W, CAB_H, CAB_D), cf(0, CAB_Y + CAB_H / 2, 0), C.Steel)
-	Build.Part(model, "Worktop", Vector3.new(CAB_W + 0.3, 0.3, CAB_D + 0.3), cf(0, TOP_Y + 0.15, 0), C.Chrome)
+	local worktop = Build.Part(
+		model,
+		PropBuilder.Visual.Cue,
+		Vector3.new(CAB_W + 0.3, 0.3, CAB_D + 0.3),
+		cf(0, TOP_Y + 0.15, 0),
+		C.Chrome
+	)
 	Build.Part(model, "Fascia", Vector3.new(CAB_W + 0.1, 0.9, 0.2), cf(0, TOP_Y - 0.5, FRONT_Z + 0.05), fascia)
 	local doorW, doorH = CAB_W / 2 - 0.5, CAB_H - 1.6
 	for _, side in { -1, 1 } do
@@ -114,11 +130,55 @@ local function baseStation(model: Model, fascia: Color3, knobCount: number, fxHe
 	-- Attachment position is relative to Interact: up to the cooking surface and back over the station.
 	fx.Position = Vector3.new(0, fxHeight - interactY, -Layout.InteractOffsetZ)
 	fx.Parent = interact
+	return worktop
 end
 
--- Flat-top griddle: dark plate with steel splash guards, two patties, a spatula and a heat lamp.
+-- ── Cook-state food (hidden until StationVisuals shows it) ───────────────────
+
+type FoodOpts = { afterFlip: boolean?, liquid: boolean?, shown: number?, burnt: Color3? }
+
+-- Visuals folder plus the status light and the food-level FX attachment on the worktop.
+local function visuals(model: Model, worktop: BasePart, foodAt: Vector3): Folder
+	local folder = Instance.new("Folder")
+	folder.Name = PropBuilder.Visual.Folder
+	folder.Parent = model
+	local fx = Instance.new("Attachment")
+	fx.Name = PropBuilder.Visual.FX
+	fx.Position = foodAt - worktop.Position -- the station is still unrotated at the origin here
+	fx.Parent = worktop
+	local light = Instance.new("PointLight")
+	light.Name = PropBuilder.Visual.Light
+	light.Enabled = false
+	light.Shadows = false
+	light.Parent = worktop
+	return folder
+end
+
+-- Marks a part as station food: hidden, non-colliding, with its raw / cooked / burnt colors.
+local function food(part: BasePart, raw: Color3, cooked: Color3, opts: FoodOpts?): BasePart
+	local o: FoodOpts = opts or {}
+	Build.Soft(part)
+	part.Color = raw
+	part.Transparency = 1
+	part:SetAttribute(VA.Managed, true)
+	part:SetAttribute(VA.RawColor, raw)
+	part:SetAttribute(VA.CookedColor, cooked)
+	part:SetAttribute(VA.BurntColor, o.burnt or C.Char)
+	part:SetAttribute(VA.ShownTransparency, o.shown or 0)
+	if o.afterFlip then
+		part:SetAttribute(VA.AfterFlip, true)
+	end
+	if o.liquid then
+		part:SetAttribute(VA.Liquid, true)
+	end
+	return part
+end
+
+-- Flat-top griddle: dark plate with steel splash guards, a spatula and a heat lamp. The griddle starts
+-- clean; StationVisuals shows the patty (and the cheese after the flip).
 local function makeGrill(model: Model)
-	baseStation(model, C.Ketchup, 3, WORK_Y + 0.6)
+	local worktop = baseStation(model, C.Ketchup, 3, WORK_Y + 0.6)
+	local plateY = WORK_Y + 0.3 -- griddle surface
 	Build.Part(model, "Griddle", Vector3.new(7.2, 0.3, 4.4), cf(0, WORK_Y + 0.15, 0.3), C.Charcoal)
 	Build.Part(model, "Trough", Vector3.new(7.2, 0.25, 0.4), cf(0, WORK_Y + 0.12, FRONT_Z - 0.1), C.SteelDark)
 	Build.Part(model, "Splash", Vector3.new(CAB_W, 1.8, 0.3), cf(0, WORK_Y + 0.9, -FRONT_Z + 0.15), C.Steel)
@@ -132,15 +192,23 @@ local function makeGrill(model: Model)
 			C.Steel
 		)
 	end
-	for i, x in { -1.6, 1.2 } do
-		Build.Cylinder(model, "Patty", 1.5, 0.35, cf(x, WORK_Y + 0.47, 0.2 + i * 0.3), C.Patty)
-	end
-	Build.Part(
-		model,
-		"Cheese",
-		Vector3.new(1.2, 0.08, 1.2),
-		cf(1.2, WORK_Y + 0.68, 0.8) * CFrame.Angles(0, 0.6, 0),
-		C.Mustard
+	local folder = visuals(model, worktop, Vector3.new(0, plateY + 0.4, 0.4))
+	food(
+		Build.Cylinder(folder, "FoodPatty", 2.2, 0.42, cf(0, plateY + 0.21, 0.4), C.PattyRaw),
+		C.PattyRaw,
+		C.PattyCooked
+	)
+	food(
+		Build.Part(
+			folder,
+			"FoodCheese",
+			Vector3.new(1.7, 0.1, 1.7),
+			cf(0, plateY + 0.47, 0.4) * CFrame.Angles(0, math.pi / 4, 0),
+			C.Mustard
+		),
+		C.Mustard,
+		C.MustardDeep,
+		{ afterFlip = true }
 	)
 	-- Spatula resting on the right guard
 	Build.Part(model, "SpatulaBlade", Vector3.new(1, 0.08, 0.9), cf(2.6, WORK_Y + 0.35, 1.4), C.Chrome)
@@ -153,17 +221,35 @@ local function makeGrill(model: Model)
 	Build.Part(model, "LampGlow", Vector3.new(7, 0.1, 0.7), cf(0, WORK_Y + 3.82, -FRONT_Z + 0.6), C.Ember, NEON)
 end
 
--- Twin fryer: oil vats in a steel rim, one basket dunked and one lifted, control panel with a screen.
+-- Twin fryer: oil vats in a steel rim, one basket dunked and one lifted (empty, draining), control panel
+-- with a screen. StationVisuals shows the fries in the dunked basket.
 local function makeFryer(model: Model)
-	baseStation(model, C.Mustard, 2, WORK_Y + 0.8)
+	local worktop = baseStation(model, C.Mustard, 2, WORK_Y + 0.8)
 	Build.Part(model, "VatRim", Vector3.new(7.2, 0.5, 4.4), cf(0, WORK_Y + 0.25, 0.3), C.SteelDark)
 	for _, x in { -1.75, 1.75 } do
 		Build.Part(model, "Oil", Vector3.new(3, 0.1, 3.6), cf(x, WORK_Y + 0.52, 0.3), C.MustardDeep)
 	end
-	-- Basket left: dunked (just its rim and handle show). Basket right: lifted, full of fries.
+	-- Basket left: dunked (just its rim and handle show). Basket right: lifted and draining.
 	Build.Part(model, "BasketDunked", Vector3.new(2.6, 0.3, 3), cf(-1.75, WORK_Y + 0.65, 0.3), C.Charcoal)
 	Build.Part(model, "BasketLifted", Vector3.new(2.6, 1.1, 3), cf(1.75, WORK_Y + 1.6, -0.2), C.SteelDark)
-	Build.Part(model, "Fries", Vector3.new(2.3, 0.35, 2.7), cf(1.75, WORK_Y + 2.2, -0.2), C.MustardPale)
+	-- Two crossed piles read as a heap of fries poking out of the oil.
+	local folder = visuals(model, worktop, Vector3.new(-1.75, WORK_Y + 1.1, 0.3))
+	food(
+		Build.Part(folder, "FoodFries", Vector3.new(2.2, 0.42, 2.6), cf(-1.75, WORK_Y + 0.86, 0.3), C.FriesRaw),
+		C.FriesRaw,
+		C.FriesGold
+	)
+	food(
+		Build.Part(
+			folder,
+			"FoodFriesTop",
+			Vector3.new(1.5, 0.34, 2),
+			cf(-1.75, WORK_Y + 1.1, 0.25) * CFrame.Angles(0, 0.55, 0),
+			C.FriesRaw
+		),
+		C.FriesRaw,
+		C.FriesGold
+	)
 	for i, x in { -1.75, 1.75 } do
 		local lift = if i == 2 then 1.1 else 0.2
 		Build.Part(
@@ -190,8 +276,9 @@ local function makeFryer(model: Model)
 end
 
 -- Wood-fired pizza oven: terracotta dome with a stone arch mouth, embers, a chimney, logs and a peel.
+-- StationVisuals shows a pizza on the stone landing in front of the mouth.
 local function makeOven(model: Model)
-	baseStation(model, C.Terracotta, 2, WORK_Y + 3.2)
+	local worktop = baseStation(model, C.Terracotta, 2, WORK_Y + 3.2)
 	local domeY = WORK_Y + 0.2
 	Build.Cylinder(model, "Collar", 6.4, 0.6, cf(0, WORK_Y + 0.3, -0.1), C.TerracottaDeep)
 	Build.Ball(model, "Dome", Vector3.new(6, 6, 6), cf(0, domeY, -0.1), C.Terracotta)
@@ -205,7 +292,16 @@ local function makeOven(model: Model)
 	ember.CastShadow = false
 	local glow = Build.Light(ember, C.Ember, 8, 1.2)
 	glow.Shadows = false
-	Build.Part(model, "Hearth", Vector3.new(4, 0.3, 1), cf(0, WORK_Y + 0.15, mouthZ + 0.3), C.CreamShade)
+	-- Stone landing in front of the mouth, overhanging the worktop a little: the pizza rests here.
+	local landingZ = mouthZ + 0.75
+	Build.Part(model, "Hearth", Vector3.new(4, 0.3, 1.9), cf(0, WORK_Y + 0.15, landingZ), C.CreamShade)
+	local folder = visuals(model, worktop, Vector3.new(0, WORK_Y + 0.6, landingZ))
+	food(Build.Cylinder(folder, "FoodCrust", 2.1, 0.2, cf(0, WORK_Y + 0.4, landingZ), C.DoughRaw), C.DoughRaw, C.Bun)
+	food(
+		Build.Cylinder(folder, "FoodSauce", 1.75, 0.08, cf(0, WORK_Y + 0.53, landingZ), C.Ketchup),
+		C.Ketchup,
+		C.PizzaBaked
+	)
 	Build.Cylinder(model, "Chimney", 1, 2, cf(0, domeY + 3.6, -1.2), C.SteelDark)
 	Build.Cylinder(model, "ChimneyCap", 1.5, 0.35, cf(0, domeY + 4.7, -1.2), C.Charcoal)
 	-- Logs stacked on the right of the worktop
@@ -225,8 +321,9 @@ end
 
 -- Soda fountain: tall steel tower under a rounded mint lightbox, three taps with colored levers,
 -- a drip tray grille, a cup stack and a cherry on top.
+-- StationVisuals shows a clear cup under the middle nozzle that fills with soda.
 local function makeSoda(model: Model)
-	baseStation(model, C.Mint, 0, WORK_Y + 1.2)
+	local worktop = baseStation(model, C.Mint, 0, WORK_Y + 1.2)
 	Build.Part(model, "Tower", Vector3.new(6.4, 3.4, 2.2), cf(0, WORK_Y + 1.7, -1.3), C.Steel)
 	Build.Pill(model, "Header", Vector3.new(7.2, 1.6, 2.6), cf(0, WORK_Y + 4.2, -1.2), C.Mint)
 	local plate = Build.Part(model, "HeaderPlate", Vector3.new(5, 1.1, 0.1), cf(0, WORK_Y + 4.2, 0.12), C.MintDeep)
@@ -253,6 +350,21 @@ local function makeSoda(model: Model)
 			C.Charcoal
 		)
 	end
+	local trayTop = WORK_Y + 0.27
+	local cupH, liquidH = 1.3, 1.1
+	local folder = visuals(model, worktop, Vector3.new(0, trayTop + cupH, 0.35))
+	food(
+		Build.Cylinder(folder, "FoodCup", 1.15, cupH, cf(0, trayTop + cupH / 2, 0.35), C.MintPale, Build.Glass),
+		C.MintPale,
+		C.MintPale,
+		{ shown = 0.45, burnt = C.MintPale }
+	)
+	food(
+		Build.Cylinder(folder, "FoodLiquid", 0.95, liquidH, cf(0, trayTop + 0.08 + liquidH / 2, 0.35), C.SodaLiquid),
+		C.SodaLiquid,
+		C.SodaLiquid,
+		{ liquid = true, burnt = C.SodaFlat }
+	)
 	-- Cup stack on the right edge
 	Build.Cylinder(model, "Cups", 0.9, 1.6, cf(3.4, WORK_Y + 0.8, 1.6), C.CreamLight)
 	Build.Cylinder(model, "CupBand", 0.95, 0.35, cf(3.4, WORK_Y + 1.2, 1.6), C.Ketchup)

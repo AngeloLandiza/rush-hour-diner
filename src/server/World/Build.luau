@@ -12,10 +12,12 @@ local UPRIGHT = CFrame.Angles(0, 0, math.pi / 2) -- Cylinder parts have their ax
 local FACING_Z = CFrame.Angles(0, math.pi / 2, 0) -- Cylinder axis along Z (a disc facing +Z)
 local SIGN_PPS = 20
 local SIGN_FONT = Enum.Font.FredokaOne
+local PATTERN_PPS = 8 -- SurfaceGui resolution for painted floor patterns
 
 Build.Glass = Enum.Material.Glass
 Build.WoodMat = Enum.Material.Wood
 Build.Neon = Enum.Material.Neon
+Build.BrickMat = Enum.Material.Brick
 
 local function finish(part: BasePart, name: string, cf: CFrame, color: Color3, material: Enum.Material?)
 	part.Name = name
@@ -258,6 +260,47 @@ function Build.Text(part: BasePart, text: string, color: Color3, face: Enum.Norm
 	t.Parent = gui
 	gui.Parent = part
 	return t
+end
+
+-- A checker pattern painted on one face of a part with a SurfaceGui, so tiles cost no extra parts.
+-- `cols` × `rows` cells span the face (or only the [x0, x1] slice of its width, in 0..1). Cells where
+-- row + col is even get `color`; the others get `other`, or show the part's own color when nil.
+-- On the Top face the pattern's columns run along the part's X axis and its rows along Z.
+function Build.Checker(
+	part: BasePart,
+	face: Enum.NormalId,
+	cols: number,
+	rows: number,
+	color: Color3,
+	other: Color3?,
+	x0: number?,
+	x1: number?
+): SurfaceGui
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Pattern"
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = PATTERN_PPS
+	gui.LightInfluence = 1
+	local left = x0 or 0
+	local w = ((x1 or 1) - left) / cols
+	local h = 1 / rows
+	for r = 0, rows - 1 do
+		for c = 0, cols - 1 do
+			local cellColor = if (r + c) % 2 == 0 then color else other
+			if cellColor then
+				local cell = Instance.new("Frame")
+				cell.Name = "Cell"
+				cell.BorderSizePixel = 0
+				cell.BackgroundColor3 = cellColor
+				cell.Position = UDim2.fromScale(left + c * w, r * h)
+				cell.Size = UDim2.fromScale(w, h)
+				cell.Parent = gui
+			end
+		end
+	end
+	gui.Parent = part
+	return gui
 end
 
 -- A warm shadow-casting light (lamps). Stays on in both presets.
