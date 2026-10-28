@@ -311,7 +311,14 @@ local function handleJoinCrew(player: Player, payload: any)
 		return
 	end
 	-- Re-check after the yield above.
-	if #target.crew >= Timings.Plots.MaxCrew or target.owner == nil or target.owner.UserId ~= ownerUserId then
+	if player.Parent ~= Players or target.owner == nil or target.owner.UserId ~= ownerUserId then
+		return
+	end
+	if target.owner == player or current[player] == target.plotId or #target.crew >= Timings.Plots.MaxCrew then
+		return
+	end
+	local mineNow = ownerPlot(player)
+	if mineNow and #mineNow.crew > 0 then
 		return
 	end
 	moveTo(player, target.plotId, true)
