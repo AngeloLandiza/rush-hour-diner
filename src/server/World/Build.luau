@@ -12,7 +12,8 @@ local UPRIGHT = CFrame.Angles(0, 0, math.pi / 2) -- Cylinder parts have their ax
 local FACING_Z = CFrame.Angles(0, math.pi / 2, 0) -- Cylinder axis along Z (a disc facing +Z)
 local SIGN_PPS = 20
 local SIGN_FONT = Enum.Font.FredokaOne
-local PATTERN_PPS = 8 -- SurfaceGui resolution for painted floor patterns
+local PATTERN_PPS = 8 -- SurfaceGui resolution for painted patterns
+Build.FloorPPS = 3 -- resolution for room-sized floors (keeps the texture budget for signs)
 
 Build.Glass = Enum.Material.Glass
 Build.WoodMat = Enum.Material.Wood
@@ -133,6 +134,26 @@ function Build.Ball(
 	part.Shape = Enum.PartType.Ball
 	part.Size = size
 	finish(part, name, cf, color, material)
+	part.Parent = parent
+	return part
+end
+
+-- Ellipsoid (parasols, cushions): a block with a sphere SpecialMesh. Unlike a Ball part, which Roblox
+-- forces to a uniform size, it stretches to any proportions.
+function Build.Dome(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material?
+): Part
+	local part = Instance.new("Part")
+	part.Size = size
+	finish(part, name, cf, color, material)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = part
 	part.Parent = parent
 	return part
 end
@@ -266,6 +287,8 @@ end
 -- `cols` × `rows` cells span the face (or only the [x0, x1] slice of its width, in 0..1). Cells where
 -- row + col is even get `color`; the others get `other`, or show the part's own color when nil.
 -- On the Top face the pattern's columns run along the part's X axis and its rows along Z.
+-- `pps` (pixels per stud) defaults to PATTERN_PPS; big surfaces pass less: SurfaceGui texture memory is
+-- budgeted per client, and once it runs out signs and labels stop rendering.
 function Build.Checker(
 	part: BasePart,
 	face: Enum.NormalId,
@@ -274,13 +297,14 @@ function Build.Checker(
 	color: Color3,
 	other: Color3?,
 	x0: number?,
-	x1: number?
+	x1: number?,
+	pps: number?
 ): SurfaceGui
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "Pattern"
 	gui.Face = face
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = PATTERN_PPS
+	gui.PixelsPerStud = pps or PATTERN_PPS
 	gui.LightInfluence = 1
 	local left = x0 or 0
 	local w = ((x1 or 1) - left) / cols

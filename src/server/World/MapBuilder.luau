@@ -3,6 +3,7 @@
 -- Builds the instance tree described in Contracts/WorldSchema during Init (before gameplay Start).
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Art = require(ReplicatedStorage.Shared.Config.Art)
 local Palette = require(ReplicatedStorage.Shared.Config.Palette)
@@ -11,6 +12,7 @@ local Timings = require(ReplicatedStorage.Shared.Config.Timings)
 local Types = require(ReplicatedStorage.Shared.Contracts.Types)
 local WorldSchema = require(ReplicatedStorage.Shared.Contracts.WorldSchema)
 local Build = require("./Build")
+local Dining = require("./Dining")
 local Layout = require("./Layout")
 local PropBuilder = require("./PropBuilder")
 local Shells = require("./Shells")
@@ -29,6 +31,7 @@ type PlotState = {
 	cf: CFrame,
 	accent: Color3,
 	tier: number,
+	seatCount: number,
 	signText: TextLabel,
 }
 
@@ -92,8 +95,7 @@ local function soft(part: BasePart): BasePart
 end
 
 -- Retro street lamp: ink pole with a mustard collar, a warm glass globe and a cap.
-local function buildLamp(parent: Instance, x: number, z: number)
-	local y0 = Layout.SidewalkHeight
+local function buildLamp(parent: Instance, x: number, z: number, y0: number)
 	local base = CFrame.new(x, y0, z)
 	Build.Cylinder(parent, "LampBase", 1.5, 1, base * CFrame.new(0, 0.5, 0), C.Ink)
 	Build.Cylinder(parent, "LampPole", 0.5, 9, base * CFrame.new(0, 5.5, 0), C.Ink)
@@ -144,7 +146,15 @@ local function buildBench(parent: Instance, cf: CFrame)
 end
 
 -- A simple two-story storefront block used to close off the street ends and the backdrop.
-local function buildBlock(parent: Instance, cf: CFrame, w: number, h: number, wall: Color3, trim: Color3)
+local function buildBlock(
+	parent: Instance,
+	cf: CFrame,
+	w: number,
+	h: number,
+	wall: Color3,
+	trim: Color3,
+	awningColor: Color3
+)
 	Build.Part(parent, "Block", Vector3.new(w, h, 14), cf * CFrame.new(0, h / 2, 0), wall)
 	Build.Part(parent, "BlockCap", Vector3.new(w + 1, 0.8, 15), cf * CFrame.new(0, h + 0.4, 0), C.CreamLight)
 	Build.Part(parent, "BlockBand", Vector3.new(w + 0.2, 0.6, 14.2), cf * CFrame.new(0, h * 0.45, 0), trim)
@@ -154,11 +164,21 @@ local function buildBlock(parent: Instance, cf: CFrame, w: number, h: number, wa
 			"BlockWindows",
 			Vector3.new(w - 4, h * 0.18, 0.3),
 			cf * CFrame.new(0, h * row, 7),
-			C.MintPale,
+			C.TownWindow,
 			Build.Glass
 		)
 		win.Transparency = 0.2
+		Build.RushNeon(win) -- the town's windows glow softly at night
 	end
+	-- Shop awning over the ground-floor windows (tall side against the wall)
+	local awnY = h * 0.28 + h * 0.09 + 0.7
+	Build.Wedge(
+		parent,
+		"BlockAwning",
+		Vector3.new(w - 3, 1.4, 2.6),
+		cf * CFrame.new(0, awnY, 8.3) * CFrame.Angles(0, math.pi, 0),
+		awningColor
+	)
 end
 
 local function buildStreet(map: Folder)
@@ -166,7 +186,14 @@ local function buildStreet(map: Folder)
 	local walk = Layout.SidewalkDepth
 	local len = Layout.StreetLength
 	local top = Layout.StreetThickness
-	Build.Part(map, "Ground", Layout.GroundSize, CFrame.new(0, -0.5, 0), C.Grass)
+	-- Top a hair above y = 0 so it always wins over a template Baseplate left in the place file.
+	Build.Part(
+		map,
+		"Ground",
+		Layout.GroundSize,
+		CFrame.new(0, Layout.GroundTopY - Layout.GroundSize.Y / 2, 0),
+		C.GrassDark
+	)
 	Build.Part(map, "Street", Vector3.new(len, top, Layout.StreetWidth), CFrame.new(0, top / 2, 0), C.Asphalt)
 	for _, side in { -1, 1 } do
 		Build.Part(
@@ -224,17 +251,43 @@ local function buildStreet(map: Folder)
 	end
 	-- Lamps on both sidewalks, benches facing the street, trees in the walkways between plots
 	for _, x in Layout.LampX do
-		buildLamp(map, x, -(half + 1.4))
-		buildLamp(map, x, half + 1.4)
+		buildLamp(map, x, -(half + 1.4), Layout.SidewalkHeight)
+		buildLamp(map, x, half + 1.4, Layout.SidewalkHeight)
 	end
 	for _, x in Layout.BenchX do
 		buildBench(map, CFrame.new(x, Layout.SidewalkHeight, -(half + walk - 1.5)))
 		buildBench(map, CFrame.new(x, Layout.SidewalkHeight, half + walk - 1.5) * CFrame.Angles(0, math.pi, 0))
 	end
-	for _, x in Layout.TreeX do
-		for _, z in Layout.TreeZ do
-			buildTree(map, x, z, 1)
-			buildTree(map, x, -z, 1)
+	-- Walkways between the plots: a paved strip from the sidewalk to the back, trees and lamps
+	local w = Layout.Walkway
+	local z0 = half + walk
+	local z1 = z0 + Layout.PlotSize.Z
+	for _, x in w.X do
+		for _, side in { -1, 1 } do
+			local pave = Build.Part(
+				map,
+				"Walkway",
+				Vector3.new(w.PaveWidth, 0.12, z1 - z0),
+				CFrame.new(x, 0.06, side * (z0 + z1) / 2),
+				C.Concrete
+			)
+			Build.Checker(
+				pave,
+				Enum.NormalId.Top,
+				1,
+				math.round((z1 - z0) / 3),
+				C.ConcreteDark,
+				nil,
+				nil,
+				nil,
+				Build.FloorPPS
+			)
+			for i, z in w.TreeZ do
+				buildTree(map, x + (if i % 2 == 0 then 1 else -1) * (w.PaveWidth / 2 + 2.2), side * z, 1)
+			end
+			for _, z in w.LampZ do
+				buildLamp(map, x, side * z, 0)
+			end
 		end
 	end
 	-- Backdrop: a tree line behind the plots and storefront blocks at both street ends
@@ -244,10 +297,23 @@ local function buildStreet(map: Folder)
 		end
 	end
 	local blockColors = { C.Linen, C.Terracotta, C.MintPale, C.MustardPale }
-	for i, z in { -36, -16, 16, 36 } do
+	local awningColors = { C.Ketchup, C.Mint, C.Mustard, C.Ink }
+	for i, z in Layout.EndBuildingZ do
 		for _, side in { -1, 1 } do
 			local cf = CFrame.new(side * Layout.EndBuildingX, 0, z) * CFrame.Angles(0, -side * math.pi / 2, 0)
-			buildBlock(map, cf, 18, 16 + (i % 2) * 6, blockColors[(i + (side + 1) / 2) % #blockColors + 1], C.Ink)
+			local wall = blockColors[(i + (side + 1) / 2) % #blockColors + 1]
+			buildBlock(map, cf, 20, 16 + (i % 2) * 6, wall, C.Ink, awningColors[i % #awningColors + 1])
+		end
+	end
+	-- Skyline: a row of town blocks behind the tree line on both sides, facing the street
+	local sky = Layout.Skyline
+	for i, x in sky.X do
+		for _, side in { -1, 1 } do
+			local h = sky.Heights[(i + (side + 1) / 2) % #sky.Heights + 1]
+			local cf = CFrame.new(x, 0, side * (sky.Z + (i % 2) * sky.Stagger))
+				* CFrame.Angles(0, if side > 0 then math.pi else 0, 0)
+			local wall = blockColors[(i + side) % #blockColors + 1]
+			buildBlock(map, cf, sky.Width, h, wall, C.Ink, awningColors[(i + side) % #awningColors + 1])
 		end
 	end
 	-- Welcome spawn pad for players before they get a plot: a round mint plaza in the street.
@@ -284,37 +350,6 @@ local function accentFor(plotId: number): Color3
 	return accents[(plotId - 1) % #accents + 1]
 end
 
--- Chrome diner stool: accent cushion (the Seat part) on a cream piping ring, chrome pole and foot.
-local function buildSeat(seats: Folder, plotCF: CFrame, plotId: number, accent: Color3, k: number)
-	local x = Layout.SeatX[k]
-	local top = F + Layout.SeatHeight
-	local seat = Build.Cylinder(
-		seats,
-		WorldSchema.SeatPrefix .. k,
-		2.5,
-		0.6,
-		plotCF * CFrame.new(x, top - 0.3, Layout.SeatZ),
-		accent
-	)
-	seat:SetAttribute(A.SeatIndex, k)
-	seat:SetAttribute(A.PlotId, plotId)
-	Build.Cylinder(seat, "Piping", 2.7, 0.18, plotCF * CFrame.new(x, top - 0.62, Layout.SeatZ), C.CreamLight)
-	Build.Cylinder(
-		seat,
-		"Leg",
-		0.45,
-		Layout.SeatHeight - 0.7,
-		plotCF * CFrame.new(x, F + (Layout.SeatHeight - 0.7) / 2, Layout.SeatZ),
-		C.Chrome
-	)
-	Build.Cylinder(seat, "Foot", 1.8, 0.25, plotCF * CFrame.new(x, F + 0.12, Layout.SeatZ), C.SteelDark)
-	local sit = Instance.new("Attachment")
-	sit.Name = P.SitAttachment
-	sit.Parent = seat
-	-- Faces the counter (plot -Z)
-	sit.WorldCFrame = plotCF * CFrame.lookAt(Vector3.new(x, top, Layout.SeatZ), Vector3.new(x, top, Layout.SeatZ - 1))
-end
-
 -- The diner counter: cream body with a kick plate, chrome rail and accent band on the customer side,
 -- an overhanging countertop with a chrome edge, a pink under-glow for Rush Hour and condiments.
 local function buildCounter(model: Model, cf: CFrame, accent: Color3): BasePart
@@ -344,7 +379,7 @@ local function buildCounter(model: Model, cf: CFrame, accent: Color3): BasePart
 		NEON
 	)
 	Build.RushNeon(glow)
-	for i, x in { -16, -8, 8, 16 } do
+	for i, x in { -15, -7.5, 7.5, 15 } do
 		local y = topY + 0.18
 		Build.Cylinder(model, "Ketchup", 0.42, 1, at(x - 0.35, y + 0.5, Layout.CounterZ + 0.3), C.Ketchup)
 		Build.Cylinder(model, "Mustard", 0.42, 1, at(x + 0.2, y + 0.5, Layout.CounterZ + 0.4), C.Mustard)
@@ -359,29 +394,6 @@ local function buildCounter(model: Model, cf: CFrame, accent: Color3): BasePart
 		end
 	end
 	return counter
-end
-
--- Low hedges along the street edge of the lot (with a gap for the path) and a patterned brick path.
--- The rest of the yard (tables, lamps, menu, queue rope) is built per decor tier by Yard via Shells.
-local function buildFrontYard(model: Model, cf: CFrame)
-	local edgeZ = Layout.PlotSize.Z / 2 - 1
-	local pathW = Layout.DoorSize.X + 2
-	local hedgeW = Layout.PlotSize.X / 2 - pathW / 2 - 1
-	for _, side in { -1, 1 } do
-		local x = side * (pathW / 2 + hedgeW / 2 + 0.5)
-		Build.Part(model, "HedgeBox", Vector3.new(hedgeW, 0.9, 1.6), cf * CFrame.new(x, F + 0.45, edgeZ), C.Wood)
-		Build.Part(model, "Hedge", Vector3.new(hedgeW - 0.3, 1.3, 1.3), cf * CFrame.new(x, F + 1.45, edgeZ), C.Leaf)
-	end
-	local lawnZ0 = Layout.LawnStartZ
-	local lawnD = Layout.PlotSize.Z / 2 - lawnZ0
-	Build.Part(
-		model,
-		"Lawn",
-		Vector3.new(Layout.PlotSize.X, 0.04, lawnD),
-		cf * CFrame.new(0, F + 0.02, lawnZ0 + lawnD / 2),
-		C.Grass
-	)
-	Yard.Path(model, cf, Layout.WallFrontZ, Layout.PlotSize.Z / 2, true)
 end
 
 local function buildSlot(stationsFolder: Folder, plotCF: CFrame, plotId: number, k: number)
@@ -479,9 +491,23 @@ local function buildPlot(plotsFolder: Folder, plotId: number)
 	model.Name = WorldSchema.PlotPrefix .. plotId
 	model:SetAttribute(A.PlotId, plotId)
 
-	local base = Build.Part(model, P.Base, Layout.PlotSize, cf * CFrame.new(0, F - Layout.PlotSize.Y / 2, 0), C.Sand)
+	local base = Build.Part(model, P.Base, Layout.PlotSize, cf * CFrame.new(0, F - Layout.PlotSize.Y / 2, 0), C.Grass)
 	model.PrimaryPart = base
-	buildFrontYard(model, cf)
+	-- Mowing stripes across the lawn: thin slabs (a painted pattern this big would eat the SurfaceGui budget)
+	local stripeD = Layout.PlotSize.Z / Layout.LawnStripes
+	for i = 2, Layout.LawnStripes, 2 do
+		local z = -Layout.PlotSize.Z / 2 + (i - 0.5) * stripeD
+		local stripe = Build.Part(
+			model,
+			"LawnStripe",
+			Vector3.new(Layout.PlotSize.X - 3, 0.04, stripeD),
+			cf * CFrame.new(0, F + 0.01, z),
+			C.GrassStripe
+		)
+		stripe.CanCollide = false
+		stripe.CastShadow = false
+	end
+	Yard.Lot(model, cf)
 
 	Build.Marker(model, P.Spawn, Vector3.new(4, 1, 2.5), cf * CFrame.new(0, F + 0.5, Layout.SpawnZ))
 	Build.Marker(model, P.CustomerSpawn, Vector3.new(4, 1, 4), cf * CFrame.new(0, F + 0.5, Layout.CustomerSpawnZ))
@@ -498,10 +524,7 @@ local function buildPlot(plotsFolder: Folder, plotId: number)
 	stationsFolder.Parent = model
 
 	local seatsFolder = Instance.new("Folder")
-	seatsFolder.Name = P.Seats
-	for k = 1, Timings.Seats.Max do
-		buildSeat(seatsFolder, cf, plotId, accent, k)
-	end
+	seatsFolder.Name = P.Seats -- filled by ApplyDecor (Dining), styled per decor tier
 	seatsFolder.Parent = model
 
 	local shell = Instance.new("Folder")
@@ -509,7 +532,8 @@ local function buildPlot(plotsFolder: Folder, plotId: number)
 	shell.Parent = model
 
 	model.Parent = plotsFolder
-	plots[plotId] = { model = model, cf = cf, accent = accent, tier = -1, signText = signText }
+	plots[plotId] =
+		{ model = model, cf = cf, accent = accent, tier = -1, seatCount = Timings.Seats.Base, signText = signText }
 end
 
 function MapBuilder.Init()
@@ -534,7 +558,40 @@ function MapBuilder.GetPlotModel(plotId: number): Model?
 	return if state then state.model else nil
 end
 
--- Rebuild the plot's Shell for decor tier 0..2.
+-- "My diner grew": every new shell part pops out of the floor from the building's center, in a wave
+-- that runs outward (Back easing). Parts don't collide while they move.
+local function playGrowth(shell: Instance, pivot: CFrame)
+	local parts: { BasePart } = {}
+	local maxDist = 1
+	for _, d in shell:GetDescendants() do
+		if d:IsA("BasePart") then
+			table.insert(parts, d)
+			maxDist = math.max(maxDist, (d.Position - pivot.Position).Magnitude)
+		end
+	end
+	local g = Art.Growth
+	local info = TweenInfo.new(g.Seconds, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	for _, part in parts do
+		local finalCF, finalSize, collide = part.CFrame, part.Size, part.CanCollide
+		local rel = pivot:ToObjectSpace(finalCF)
+		part.CFrame = pivot * (rel - rel.Position * (1 - g.StartScale))
+		part.Size = finalSize * g.StartScale
+		part.CanCollide = false
+		local delay = g.StaggerSeconds * (finalCF.Position - pivot.Position).Magnitude / maxDist
+		task.delay(delay, function()
+			if not part.Parent then
+				return
+			end
+			local tween = TweenService:Create(part, info, { CFrame = finalCF, Size = finalSize })
+			tween.Completed:Once(function()
+				part.CanCollide = collide
+			end)
+			tween:Play()
+		end)
+	end
+end
+
+-- Rebuild the plot's Shell and furniture for decor tier 0..2. Moving up a tier animates the growth.
 function MapBuilder.ApplyDecor(plotId: number, tier: number)
 	local state = plots[plotId]
 	if not state then
@@ -544,13 +601,20 @@ function MapBuilder.ApplyDecor(plotId: number, tier: number)
 	if state.tier == clamped then
 		return
 	end
+	local grew = state.tier >= 0 and clamped > state.tier
 	state.tier = clamped
 	local shell = state.model:FindFirstChild(P.Shell)
-	if not shell or not shell:IsA("Folder") then
+	local seats = state.model:FindFirstChild(P.Seats)
+	if not shell or not shell:IsA("Folder") or not seats or not seats:IsA("Folder") then
 		return
 	end
 	shell:ClearAllChildren()
 	Shells.Build(shell, state.cf, state.accent, clamped)
+	Dining.Build(seats, state.cf, plotId, state.accent, clamped)
+	MapBuilder.SetSeatCount(plotId, state.seatCount)
+	if grew then
+		playGrowth(shell, state.cf * CFrame.new(0, F, (Layout.WallBackZ + Layout.WallFrontZ) / 2))
+	end
 end
 
 local function setChildrenVisible(folder: Instance?, prefix: string, count: number)
@@ -565,10 +629,11 @@ local function setChildrenVisible(folder: Instance?, prefix: string, count: numb
 	end
 end
 
--- Show seats 1..count (hide the rest).
+-- Show seats 1..count (hide the rest). A table shows with its first seat (it is that seat's child).
 function MapBuilder.SetSeatCount(plotId: number, count: number)
 	local state = plots[plotId]
 	if state then
+		state.seatCount = count
 		setChildrenVisible(state.model:FindFirstChild(P.Seats), WorldSchema.SeatPrefix, count)
 	end
 end
@@ -616,8 +681,9 @@ function MapBuilder.SetVIPBooth(plotId: number, enabled: boolean)
 	local booth = Instance.new("Model")
 	booth.Name = "VIPBooth"
 	local o = Layout.VIPPos
-	local cf = state.cf * CFrame.new(o.X, F, o.Z)
-	-- A velvet booth on the patio: pink cushions on an ink base, a round table and a neon VIP sign.
+	-- Built facing local +Z, turned to face +X (into the dining room from the left wall).
+	local cf = state.cf * CFrame.new(o.X, F, o.Z) * CFrame.Angles(0, math.pi / 2, 0)
+	-- A velvet booth: pink cushions on an ink base, a round table and a neon VIP sign.
 	Build.Part(booth, "Bench", Vector3.new(9, 1, 3.4), cf * CFrame.new(0, 0.5, 0), C.Ink)
 	Build.Part(booth, "Cushion", Vector3.new(8.6, 0.7, 3), cf * CFrame.new(0, 1.35, 0.1), C.NeonPink)
 	Build.Pill(booth, "Back", Vector3.new(9, 3.6, 0.9), cf * CFrame.new(0, 3, -1.8), C.NeonPink)

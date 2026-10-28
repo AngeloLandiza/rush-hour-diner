@@ -53,6 +53,13 @@ local Art = {
 		} :: { [string]: MeshSpec },
 		AutoServer = { meshId = 71726394278691, textureId = 117040127936581, size = { 4.2, 5, 3.4 } } :: MeshSpec?,
 	},
+	-- MapBuilder.ApplyDecor: when a plot moves up a decor tier, the new shell pops out of the floor
+	-- (scaled from StartScale around the building center), in a wave that runs outward.
+	Growth = {
+		Seconds = 0.7,
+		StartScale = 0.35,
+		StaggerSeconds = 0.6, -- delay for the outermost part
+	},
 	-- Seconds PropBuilder waits for one mesh load before falling back to primitives.
 	MeshLoadTimeout = 10,
 }

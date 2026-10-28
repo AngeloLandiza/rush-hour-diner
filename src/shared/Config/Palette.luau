@@ -37,6 +37,7 @@ local Hex: { [string]: string } = {
 	NightHaze = "4B4C8F", -- rush hour atmosphere: blue-violet night air (no pink)
 	NightIndigo = "232552", -- rush hour atmosphere decay (horizon)
 	NightTint = "ECEBFF", -- rush hour color correction: cool lavender-white
+	TownWindow = "6F7FA8", -- backdrop town windows: blue glass by day, a soft glow as Rush Hour neon
 	-- Warm neutrals (dominant surfaces)
 	Linen = "F3E6CF", -- walls, secondary cream
 	Sand = "E2CFAE", -- patio, sidewalk joints
@@ -57,6 +58,7 @@ local Hex: { [string]: string } = {
 	-- Nature
 	Grass = "86C17A",
 	GrassDark = "6AA864",
+	GrassStripe = "7DB973", -- lawn mowing stripes, a shade under Grass
 	Leaf = "4FA35E",
 	LeafDark = "37804A",
 	Terracotta = "D2774E", -- pots, oven dome

@@ -1,8 +1,9 @@
 --!strict
--- Front yard of a plot: a brick path with a checker runner, umbrella tables, lamp posts, a chalkboard
--- A-frame, queue rope stanchions by the entrance, planters (tier 0) and a delivery scooter (tier 2).
--- Built in plot-local space (+Z = street) into the Shell folder, so it is rebuilt with the decor tier.
--- Every prop stays off the customer walk (see Layout.Yard) and under 10 parts.
+-- The lot around the diner. Permanent parts (built once by MapBuilder): the brick path from the street
+-- to the Door, the lot hedges and the lot trees. Per decor tier (into the Shell folder): garden lamp posts,
+-- a chalkboard A-frame, queue rope stanchions, parasol tables and flower beds on the lawn (tiers 0-1)
+-- and a delivery scooter (tier 2). Built in plot-local space (+Z = street). Every prop stays off the
+-- customer walk (CustomerSpawn → Door runs down the path at x = 0) and under 10 parts.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Palette = require(ReplicatedStorage.Shared.Config.Palette)
@@ -16,14 +17,12 @@ local PATH_W = Layout.DoorSize.X + 2
 
 local Yard = {}
 
--- Brick path from z0 to z1 (plot local) with a cream/ink checker runner painted down the middle.
--- border = true adds the cream border slab underneath (the permanent street-to-door path).
-function Yard.Path(parent: Instance, plotCF: CFrame, z0: number, z1: number, border: boolean)
+-- Brick path from z0 to z1 (plot local) on a cream border, with a cream/ink checker runner painted down
+-- the middle (3 parts).
+function Yard.Path(parent: Instance, plotCF: CFrame, z0: number, z1: number)
 	local len = z1 - z0
 	local z = (z0 + z1) / 2
-	if border then
-		Build.Part(parent, "Path", Vector3.new(PATH_W, 0.08, len), plotCF * CFrame.new(0, F + 0.04, z), C.CreamLight)
-	end
+	Build.Part(parent, "Path", Vector3.new(PATH_W, 0.08, len), plotCF * CFrame.new(0, F + 0.04, z), C.CreamLight)
 	local brickW = PATH_W - 2 * Y.PathBorder
 	local brick = Build.Part(
 		parent,
@@ -38,12 +37,52 @@ function Yard.Path(parent: Instance, plotCF: CFrame, z0: number, z1: number, bor
 	Build.Checker(brick, Enum.NormalId.Top, 2, rows, C.Cream, C.Ink, 0.5 - half, 0.5 + half)
 end
 
+-- Round-canopy tree (4 parts).
+function Yard.Tree(parent: Instance, base: CFrame, scale: number)
+	Build.Cylinder(parent, "Trunk", 1.1 * scale, 5 * scale, base * CFrame.new(0, 2.5 * scale, 0), C.WoodDark)
+	Build.Ball(parent, "Canopy", Vector3.new(7, 6, 7) * scale, base * CFrame.new(0, 6.5 * scale, 0), C.Leaf)
+	Build.Ball(
+		parent,
+		"Canopy",
+		Vector3.new(4.6, 4.2, 4.6) * scale,
+		base * CFrame.new(1.6 * scale, 8.4 * scale, 0.8 * scale),
+		C.Leaf
+	)
+	Build.Ball(
+		parent,
+		"Canopy",
+		Vector3.new(4, 3.6, 4) * scale,
+		base * CFrame.new(-1.8 * scale, 7.8 * scale, -1 * scale),
+		C.LeafDark
+	)
+end
+
+-- Permanent lot dressing: hedges on the back and sides, a street-edge hedge with a gap for the path, the
+-- path itself and the lot trees.
+function Yard.Lot(model: Model, cf: CFrame)
+	local hx, hz = Layout.PlotSize.X / 2, Layout.PlotSize.Z / 2
+	local function hedge(x: number, z: number, w: number, d: number)
+		Build.Part(model, "HedgeBox", Vector3.new(w, 0.9, d), cf * CFrame.new(x, F + 0.45, z), C.Wood)
+		Build.Part(model, "Hedge", Vector3.new(w - 0.3, 1.3, d - 0.3), cf * CFrame.new(x, F + 1.45, z), C.Leaf)
+	end
+	local edgeW = hx - PATH_W / 2 - 1
+	for _, side in { -1, 1 } do
+		hedge(side * (PATH_W / 2 + edgeW / 2 + 0.5), hz - 1, edgeW, 1.6)
+		hedge(side * (hx - 1), 0, 1.6, Layout.PlotSize.Z - 4)
+	end
+	hedge(0, -(hz - 1), Layout.PlotSize.X - 2, 1.6)
+	Yard.Path(model, cf, Layout.WallFrontZ, hz)
+	for _, t in Y.LotTrees do
+		Yard.Tree(model, cf * CFrame.new(t[1], F, t[2]), t[3])
+	end
+end
+
 -- Round bistro table under a parasol, with two stools (6 parts).
 local function tableSet(parent: Instance, base: CFrame, canopy: Color3)
 	Build.Cylinder(parent, "PatioTable", 3.2, 0.22, base * CFrame.new(0, 2.7, 0), C.CreamLight)
 	Build.Cylinder(parent, "PatioTableLeg", 0.5, 2.6, base * CFrame.new(0, 1.3, 0), C.Chrome)
 	Build.Soft(Build.Cylinder(parent, "ParasolPole", 0.18, 3.6, base * CFrame.new(0, 4.6, 0), C.Chrome))
-	local shade = Build.Ball(parent, "Parasol", Vector3.new(6.2, 1.5, 6.2), base * CFrame.new(0, 6.1, 0), canopy)
+	local shade = Build.Dome(parent, "Parasol", Vector3.new(6.2, 1.6, 6.2), base * CFrame.new(0, 6.1, 0), canopy)
 	Build.Soft(shade)
 	for _, side in { -1, 1 } do
 		Build.Cylinder(parent, "PatioStool", 1.4, 1.7, base * CFrame.new(side * 2.3, 0.85, 0), C.Wood)
@@ -105,12 +144,14 @@ local function aFrame(parent: Instance, base: CFrame, text: string)
 	Build.Text(board, text, C.Cream)
 end
 
--- Terracotta pot with a round shrub and one flower (3 parts).
-local function planter(parent: Instance, plotCF: CFrame, x: number, z: number, flower: Color3)
+-- Low flower bed: a wooden border with a row of shrubs and flowers (5 parts).
+local function flowerBed(parent: Instance, plotCF: CFrame, x: number, z: number)
 	local base = plotCF * CFrame.new(x, F, z)
-	Build.Cylinder(parent, "YardPot", 2.2, 1.8, base * CFrame.new(0, 0.9, 0), C.Terracotta)
-	Build.Ball(parent, "YardShrub", Vector3.new(2.6, 2.3, 2.6), base * CFrame.new(0, 2.5, 0), C.Leaf)
-	Build.Ball(parent, "YardFlower", Vector3.new(0.9, 0.9, 0.9), base * CFrame.new(0.5, 3.5, 0.4), flower)
+	Build.Part(parent, "BedBorder", Vector3.new(3, 0.6, 10), base * CFrame.new(0, 0.3, 0), C.WoodDark)
+	Build.Part(parent, "BedSoil", Vector3.new(2.6, 0.62, 9.6), base * CFrame.new(0, 0.32, 0), C.Patty)
+	Build.Dome(parent, "BedShrub", Vector3.new(2.4, 1.8, 4), base * CFrame.new(0, 1.2, -2.6), C.Leaf)
+	Build.Dome(parent, "BedShrub", Vector3.new(2.4, 1.6, 3.6), base * CFrame.new(0, 1.1, 2.6), C.LeafDark)
+	Build.Dome(parent, "BedFlowers", Vector3.new(2, 1.2, 2), base * CFrame.new(0, 1.1, 0), C.KetchupSoft)
 end
 
 -- Parked delivery scooter, side-on to the street (8 parts).
@@ -140,19 +181,18 @@ local function scooter(parent: Instance, base: CFrame)
 	Build.Text(box, "EATS", C.CreamLight)
 end
 
--- Tier 0 gets corner planters and the path stub up to the stand; tiers 1-2 already have facade
--- planters. Tier 2 adds the delivery scooter.
+-- Per-tier yard props: parasol tables and flower beds on the lawn, lamps, rope and menu; tier 2 adds
+-- the delivery scooter.
 function Yard.Build(shell: Folder, plotCF: CFrame, accent: Color3, tier: number)
-	if tier <= 0 then
-		Yard.Path(shell, plotCF, Y.StandPathZ0, Layout.WallFrontZ, false)
-	end
 	for _, side in { -1, 1 } do
-		tableSet(shell, plotCF * CFrame.new(side * Y.TableX, F, Y.TableZ), accent)
 		queueRope(shell, plotCF, side * Y.RopeX)
-		lampPost(shell, plotCF, side * Y.LampX, Y.LampZ)
-		if tier <= 0 then
-			planter(shell, plotCF, side * Y.PlanterX, Y.PlanterZ, if side < 0 then C.Ketchup else C.Mustard)
+		for _, z in Y.LampZ do
+			lampPost(shell, plotCF, side * Y.LampX, z)
 		end
+		-- Tier 2's patio covers the lawn tables' spot, so they move out toward the street
+		local tableZ = if tier >= 2 then Y.TableZBig else Y.TableZ
+		tableSet(shell, plotCF * CFrame.new(side * Y.TableX, F, tableZ), accent)
+		flowerBed(shell, plotCF, side * Y.FlowerBedX, Y.FlowerBedZ)
 	end
 	aFrame(shell, plotCF * CFrame.new(Y.MenuPos.X, F, Y.MenuPos.Z) * CFrame.Angles(0, 0.35, 0), "MENU")
 	if tier >= 2 then
