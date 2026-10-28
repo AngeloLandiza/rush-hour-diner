@@ -63,6 +63,11 @@ local WorldSchema = {
 		PlayerPlotId = "PlotId", -- plot the player works on
 		VIPBooth = "VIPBooth", -- owns VIP Booth pass (chat tag)
 	},
+	-- SoundService SoundGroups created by AudioDirector; the client mutes them locally per settings.
+	SoundGroups = {
+		Music = "Music",
+		Sfx = "Sfx",
+	},
 	-- CollectionService tags
 	Tags = {
 		StationInteract = "StationInteract", -- Interact parts
