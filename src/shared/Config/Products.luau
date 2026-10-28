@@ -49,7 +49,7 @@ local Products = {
 		},
 		CoinsSmall = { id = 0, displayName = "Pile of Coins", description = "", priceRobux = 25, coins = 500 },
 		CoinsMedium = { id = 0, displayName = "Bag of Coins", description = "", priceRobux = 99, coins = 2500 },
-		CoinsLarge = { id = 0, displayName = "Vault of Coins", description = "", priceRobux = 399, coins = 12000 },
+		CoinsLarge = { id = 0, displayName = "Vault of Coins", description = "", priceRobux = 399, coins = 11000 },
 		-- Free product used as the reward for an opt-in rewarded video ad.
 		AdTipBoost = {
 			id = 0,

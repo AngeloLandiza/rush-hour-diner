@@ -26,6 +26,10 @@ local UpgradeConfig = require("../src/shared/Config/Upgrades")
 local Dishes = require("../src/shared/Config/Dishes")
 local Timings = require("../src/shared/Config/Timings")
 local Stations = require("../src/shared/Config/Stations")
+local Offline = require("../src/shared/Logic/Offline")
+local EconomyConfig = require("../src/shared/Config/Economy")
+local CustomerConfig = require("../src/shared/Config/Customers")
+local Products = require("../src/shared/Config/Products")
 
 -- ── Sim constants (not game tuning) ─────────────────────────────────────────
 local WALK_SECONDS = 4 -- walk customer -> station and pick up the order
@@ -40,12 +44,14 @@ local EPOCH = 1700000000 - (1700000000 % Timings.RushHour.IntervalSeconds)
 -- Targets
 local FIRST_UPGRADE_MAX = 120
 local FIRST_CYCLE_MAX = 180
+local LEGEND_MIN_LO = 2.5 -- "about 3-5 minutes", measured against a noisy smoothed rate
+local LEGEND_MIN_HI = 5.5
 local ALL_MIN = 6 * 3600
 local ALL_MAX = 8 * 3600
 
 type Customer = { arrive: number, patience: number, kind: any, legendaryId: string?, dish: any, freeAt: number? }
 type Result = {
-	purchases: { { id: string, level: number, at: number } },
+	purchases: { { id: string, level: number, at: number, earned: number, levels: { [string]: number } } },
 	firstCycleDone: number?,
 	allAt: number?,
 	coinsEarned: number,
@@ -132,7 +138,14 @@ local function simulate(hasPass: boolean): Result
 			end
 			coins -= bestCost
 			levels[bestId] = (levels[bestId] or 0) + 1
-			table.insert(result.purchases, { id = bestId, level = levels[bestId], at = t })
+			local snapshot: { [string]: number } = {}
+			for k, v in levels do
+				snapshot[k] = v
+			end
+			table.insert(
+				result.purchases,
+				{ id = bestId, level = levels[bestId], at = t, earned = result.coinsEarned, levels = snapshot }
+			)
 			if Upgrades.totalLevels(levels) == 13 and result.allAt == nil then
 				result.allAt = t
 			end
@@ -235,7 +248,219 @@ print(
 	)
 )
 
+-- ── Lever reports ───────────────────────────────────────────────────────────
+-- Stage k = the period after purchase k-1 (stage 1 = before the first upgrade). Income/min is the
+-- measured coins earned during that stage; rate for levers is the stage the player is IN.
+local FIRST_RATE_WINDOW = 120 -- stage 1 rate is measured over its own length
+type Stage = { index: number, from: number, to: number, perMin: number, levels: { [string]: number } }
+local stages: { Stage } = {}
+do
+	local prevT, prevE, prevLevels = 0, 0, {}
+	for i, p in free.purchases do
+		if p.at > prevT then
+			table.insert(stages, {
+				index = i,
+				from = prevT,
+				to = p.at,
+				perMin = (p.earned - prevE) / (p.at - prevT) * 60, -- raw; smoothed below
+				levels = prevLevels,
+			})
+		end
+		prevT, prevE, prevLevels = p.at, p.earned, p.levels
+	end
+end
+-- Rush Hour windows make single stages noisy, so levers use a 3-stage moving average (by time).
+do
+	local raw: { number } = {}
+	for i, st in stages do
+		raw[i] = st.perMin
+	end
+	for i, st in stages do
+		local lo, hi = math.max(1, i - 1), math.min(#stages, i + 1)
+		local coins, secs = 0, 0
+		for j = lo, hi do
+			local len = stages[j].to - stages[j].from
+			coins += raw[j] * len / 60
+			secs += len
+		end
+		st.perMin = coins / (secs / 60)
+	end
+end
+local function stageAt(t: number): Stage
+	for _, st in stages do
+		if t < st.to then
+			return st
+		end
+	end
+	return stages[#stages]
+end
+
+print("")
+print("Income per minute by stage (free, stage = period before purchase #n)")
+print(string.format("%-3s %-12s %-10s %-10s", "n", "Next buy", "Coins/min", "Length"))
+for _, st in stages do
+	print(
+		string.format(
+			"%-3d %-12s %-10.0f %-10s",
+			st.index,
+			free.purchases[st.index].id,
+			st.perMin,
+			fmtTime(st.to - st.from)
+		)
+	)
+end
+
+local totalCost = 0
+for id, def in UpgradeConfig.Defs do
+	for _, c in def.costs do
+		totalCost += c
+	end
+end
+
+-- Streak: day d is claimed roughly d-1 days in; assume ~1 day of play per ~1h of progression.
+print("")
+print("Streak value (minutes of income at the stage reached after (day-1) hours of free play)")
+local streakMin: { number } = {}
+for day, reward in EconomyConfig.StreakRewards do
+	local st = stageAt((day - 1) * 3600)
+	local mins = reward / st.perMin
+	streakMin[day] = mins
+	print(string.format("  day %d: %5d coins = %.1f min (stage %d, %.0f/min)", day, reward, mins, st.index, st.perMin))
+end
+
+print("")
+print("Offline restock at cap (value in minutes of active income at each stage)")
+local restockMin: { number } = {}
+for _, st in stages do
+	local coins = Offline.fullRestock(st.levels)
+	local mins = coins / st.perMin
+	restockMin[st.index] = mins
+	print(string.format("  stage %-2d: %6d coins = %.1f min active", st.index, coins, mins))
+end
+
+print("")
+print("Legendary tip value (avg of enabled legendaries, fast Perfect serve, combo 3): minutes of income")
+local legendMin: { number } = {}
+for _, st in stages do
+	local sum, n = 0, 0
+	for id, def in CustomerConfig.Legendary do
+		if def.enabled then
+			local dish = def.favoriteDish or "Burger"
+			local patience = Orders.patienceSeconds("Legendary", id, st.levels)
+			local pay = Economy.computePayout({
+				dishId = dish,
+				kind = "Legendary",
+				legendaryId = id,
+				waitSeconds = patience * 0.2,
+				patienceSeconds = patience,
+				quality = "Perfect",
+				combo = 3,
+				ownerUpgrades = st.levels,
+				crewSize = 1,
+				rushHour = false,
+				hasTipsPass = false,
+				tipBoostPct = 0,
+			})
+			sum += pay.tip
+			n += 1
+		end
+	end
+	local mins = (sum / n) / st.perMin
+	legendMin[st.index] = mins
+	print(string.format("  stage %-2d: tip %7.0f coins = %.1f min", st.index, sum / n, mins))
+end
+
+print("")
+print("Coin packs (minutes of income at each stage; share of total upgrade cost " .. totalCost .. ")")
+local largestPack = 0
+for key, def in Products.Products do
+	local coins = (def :: any).coins
+	if coins ~= nil then
+		largestPack = math.max(largestPack, coins)
+		local row = {}
+		for _, i in { 1, 4, 7, 10, #stages } do
+			local st = stages[math.min(i, #stages)]
+			table.insert(row, string.format("s%d=%.0fm", st.index, coins / st.perMin))
+		end
+		print(
+			string.format(
+				"  %-12s %6d coins (%.1f%% of total): %s",
+				key,
+				coins,
+				coins / totalCost * 100,
+				table.concat(row, " ")
+			)
+		)
+	end
+end
+
+-- Rush Hour lever: measured share of income earned during the 4-minute window.
+local rushMult = Timings.RushHour.SpawnMultiplier * EconomyConfig.RushHour.PayMultiplier
+print("")
+print(
+	string.format(
+		"Rush Hour: %dx spawn, %dx pay for %ds each hour (up to %dx income if seats/cooking keep up)",
+		Timings.RushHour.SpawnMultiplier,
+		EconomyConfig.RushHour.PayMultiplier,
+		Timings.RushHour.DurationSeconds,
+		rushMult
+	)
+)
+
 local failures = {}
+local maxGap, gapAt = 0, 0
+do
+	local prev = 0
+	for i, p in free.purchases do
+		if p.at - prev > maxGap then
+			maxGap, gapAt = p.at - prev, i
+		end
+		prev = p.at
+	end
+end
+print(
+	string.format(
+		"Longest wait between upgrades: %s (before #%d) = %.0f%% of total",
+		fmtTime(maxGap),
+		gapAt,
+		free.allAt and maxGap / free.allAt * 100 or 0
+	)
+)
+if free.allAt ~= nil and maxGap > free.allAt * 0.25 then
+	table.insert(failures, "no single wait may exceed 25% of total progression")
+end
+if free.allAt ~= nil and pass.allAt ~= nil then
+	local ratio = pass.allAt / free.allAt
+	print(string.format("TipsX2 pass finishes in %.0f%% of free time", ratio * 100))
+	if ratio < 0.60 or ratio > 0.75 then
+		table.insert(failures, "TipsX2 pass should reach all 13 in 60-75% of free time")
+	end
+end
+if largestPack > totalCost * 0.20 then
+	table.insert(failures, "largest coin pack must be <= 20% of total upgrade cost")
+end
+if streakMin[1] < 2 or streakMin[1] > 5 then
+	table.insert(failures, "streak day 1 should be worth 2-5 minutes of income")
+end
+if streakMin[7] > 6 then
+	table.insert(failures, "streak day 7 should stay modest (<= 6 minutes of income)")
+end
+for _, st in stages do
+	if st.index >= 2 and (restockMin[st.index] < 20 or restockMin[st.index] > 40) then
+		table.insert(failures, `restock at stage {st.index} should be 20-40 min of income`)
+	end
+	if st.index >= 2 and (legendMin[st.index] < LEGEND_MIN_LO or legendMin[st.index] > LEGEND_MIN_HI) then
+		table.insert(
+			failures,
+			`legendary tip at stage {st.index} should be about 3-5 min of income (tolerance {LEGEND_MIN_LO}-{LEGEND_MIN_HI})`
+		)
+	end
+end
+local perHour = free.legendary / ((free.allAt or HORIZON_SECONDS) / 3600)
+print(string.format("Legendaries served per hour: %.1f", perHour))
+if perHour < 1 or perHour > 3 then
+	table.insert(failures, "legendary customers should appear 1-3 times per hour")
+end
 local first = free.purchases[1]
 if first == nil or first.at > FIRST_UPGRADE_MAX then
 	table.insert(failures, `first upgrade must come in under {FIRST_UPGRADE_MAX}s`)

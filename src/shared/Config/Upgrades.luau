@@ -56,7 +56,7 @@ local Upgrades = {
 			description = "One more customer at a time.",
 			order = 6,
 			maxLevel = 3,
-			costs = { 500, 2000, 6500 },
+			costs = { 500, 2000, 8000 },
 			effect = { kind = "Seats", seatsPerLevel = 1 },
 		},
 		Tips = {
@@ -65,7 +65,7 @@ local Upgrades = {
 			description = "Customers tip more.",
 			order = 7,
 			maxLevel = 2,
-			costs = { 1500, 8000 },
+			costs = { 1500, 10000 },
 			effect = { kind = "TipMultiplier", bonusPerLevel = 0.25 },
 		},
 		AutoServer = {
@@ -74,7 +74,7 @@ local Upgrades = {
 			description = "A bot carries ready dishes to waiting customers.",
 			order = 8,
 			maxLevel = 1,
-			costs = { 16000 },
+			costs = { 14000 },
 			effect = { kind = "AutoServer" },
 		},
 		Decor = {
@@ -83,7 +83,7 @@ local Upgrades = {
 			description = "A fancier diner. Customers tip a bigger percentage.",
 			order = 9,
 			maxLevel = 2,
-			costs = { 3500, 24000 },
+			costs = { 3500, 20000 },
 			effect = { kind = "Decor", tipPctPerLevel = 0.1 },
 		},
 	} :: { [Types.UpgradeId]: Types.UpgradeDef },
