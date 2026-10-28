@@ -302,8 +302,10 @@ local function makeOven(model: Model)
 		C.Ketchup,
 		C.PizzaBaked
 	)
-	Build.Cylinder(model, "Chimney", 1, 2, cf(0, domeY + 3.6, -1.2), C.SteelDark)
-	Build.Cylinder(model, "ChimneyCap", 1.5, 0.35, cf(0, domeY + 4.7, -1.2), C.Charcoal)
+	-- Short flue on the back slope of the dome: its cap stays below the dome top so it never covers
+	-- the menu board on the back wall.
+	Build.Cylinder(model, "Chimney", 0.9, 0.8, cf(0, domeY + 2.15, -2.4), C.SteelDark)
+	Build.Cylinder(model, "ChimneyCap", 1.3, 0.3, cf(0, domeY + 2.65, -2.4), C.Charcoal)
 	-- Logs stacked on the right of the worktop
 	for i, p in { Vector3.new(3.35, 0.3, 0.6), Vector3.new(3.35, 0.3, -0.6), Vector3.new(3.35, 0.85, 0) } do
 		Build.Disc(model, "Log", 0.6, 2.6, cf(p.X, WORK_Y + p.Y, p.Z - 0.4), if i == 3 then C.Wood else C.WoodDark)

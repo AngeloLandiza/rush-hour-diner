@@ -38,7 +38,7 @@ local Art = {
 		LiquidStartFraction = 0.08,
 		CueLight = { range = 9, brightness = 1.6 },
 		ReadyLight = { range = 9, brightness = 2, perfectBrightness = 3.2 },
-		WarnLight = { range = 12, brightness = 3 },
+		WarnLight = { range = 7, brightness = 1.5 }, -- a red glow on this station only
 		PerfectDingRateScale = 2,
 	},
 	-- Generated hero meshes (station, dish and bot props). Keys match Types.StationId / Types.DishId.
