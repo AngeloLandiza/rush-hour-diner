@@ -103,12 +103,31 @@ local function sendTo(plotId: number, state: Types.StationState)
 	end
 end
 
+-- Workspace.Plots.Plot_<n>.Stations.Slot_<k>, looked up each time so a rebuilt plot is still found.
+local function slotModel(plotId: number, slot: number): Instance?
+	local model = MapBuilder.GetPlotModel(plotId)
+	local stationsFolder = model and model:FindFirstChild(WorldSchema.Parts.Stations)
+	return stationsFolder and stationsFolder:FindFirstChild(`{WorldSchema.SlotPrefix}{slot}`)
+end
+
+-- Mirrors the phase and flip quality onto the slot model for World/StationVisuals.
+local function publishState(state: Types.StationState)
+	local model = slotModel(state.plotId, state.slot)
+	if model then
+		model:SetAttribute(WorldSchema.Attributes.StationPhase, state.phase)
+		model:SetAttribute(WorldSchema.Attributes.StationQuality, state.flipQuality)
+	end
+end
+
 -- Commits a new state, running side effects for phase changes and notifying the plot.
 local function commit(rt: SlotRuntime, new: Types.StationState)
 	local old = rt.state
 	rt.state = new
 	if old.phase == new.phase and old.flipQuality == new.flipQuality and old.cookerUserId == new.cookerUserId then
 		return
+	end
+	if old.phase ~= new.phase or old.flipQuality ~= new.flipQuality then
+		publishState(new)
 	end
 	if old.phase ~= new.phase then
 		local parent = sfxParent(rt)
@@ -209,10 +228,8 @@ end
 
 local function buildSlot(plotId: number, slot: number): SlotRuntime
 	local rt: SlotRuntime = { state = freshState(plotId, slot), interact = nil, fxAttachment = nil, prompt = nil }
-	local model = MapBuilder.GetPlotModel(plotId)
-	local stationsFolder = model and model:FindFirstChild(WorldSchema.Parts.Stations)
-	local slotModel = stationsFolder and stationsFolder:FindFirstChild(`{WorldSchema.SlotPrefix}{slot}`)
-	local interact = slotModel and slotModel:FindFirstChild(WorldSchema.Parts.Interact)
+	local slotRoot = slotModel(plotId, slot)
+	local interact = slotRoot and slotRoot:FindFirstChild(WorldSchema.Parts.Interact)
 	if interact and interact:IsA("BasePart") then
 		rt.interact = interact
 		interact:SetAttribute(WorldSchema.Attributes.PlotId, plotId)
@@ -228,10 +245,11 @@ local function buildSlot(plotId: number, slot: number): SlotRuntime
 		prompt.Parent = interact
 		rt.prompt = prompt
 	end
-	local fx = slotModel and slotModel:FindFirstChild(WorldSchema.Parts.FXAttachment, true)
+	local fx = slotRoot and slotRoot:FindFirstChild(WorldSchema.Parts.FXAttachment, true)
 	if fx and fx:IsA("Attachment") then
 		rt.fxAttachment = fx
 	end
+	publishState(rt.state)
 	return rt
 end
 
@@ -239,6 +257,7 @@ local function resetPlot(plotId: number)
 	for slot, rt in slots[plotId] do
 		fxOff(rt)
 		rt.state = freshState(plotId, slot)
+		publishState(rt.state)
 	end
 	refreshPrompts(plotId)
 end
@@ -365,6 +384,9 @@ function StationService.Init()
 	Events.PlotLayoutChanged:Connect(function(plotId)
 		if slots[plotId] then
 			refreshPrompts(plotId)
+			for _, rt in slots[plotId] do
+				publishState(rt.state)
+			end
 		end
 	end)
 

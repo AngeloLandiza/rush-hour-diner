@@ -13,7 +13,6 @@ local EconomyLogic = require(ReplicatedStorage.Shared.Logic.Economy)
 local Events = require(ReplicatedStorage.Shared.Contracts.Events)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Orders = require(ReplicatedStorage.Shared.Logic.Orders)
-local Palette = require(ReplicatedStorage.Shared.Config.Palette)
 local Presets = require(ReplicatedStorage.Shared.VFX.Presets)
 local Remotes = require(ReplicatedStorage.Shared.Contracts.Remotes)
 local Stations = require(ReplicatedStorage.Shared.Config.Stations)
@@ -21,6 +20,8 @@ local Timings = require(ReplicatedStorage.Shared.Config.Timings)
 local Types = require(ReplicatedStorage.Shared.Contracts.Types)
 local UpgradeLogic = require(ReplicatedStorage.Shared.Logic.Upgrades)
 local WorldSchema = require(ReplicatedStorage.Shared.Contracts.WorldSchema)
+
+local Looks = require(script.Looks)
 
 local DataService = require(script.Parent.DataService)
 local Guard = require(script.Parent.Parent.Util.Guard)
@@ -34,8 +35,6 @@ local StationService = require(script.Parent.StationService)
 local SPAWN_LIFT = Vector3.new(0, Timings.Customers.SpawnLiftStuds, 0)
 local BOT_LIFT = Vector3.new(0, Timings.AutoServer.LiftStuds, 0)
 local MAX_CUSTOMER_ID = 2 ^ 31
--- TODO(contract): Timings.Customers.SitRootLiftStuds (HumanoidRootPart centre above the seat top when seated)
-local FACE_TEXTURE = "rbxasset://textures/face.png" -- built-in engine content
 local sitTracks: { [Rec]: AnimationTrack } = {}
 
 type Rec = {
@@ -45,6 +44,7 @@ type Rec = {
 	model: Model?,
 	humanoid: Humanoid?,
 	root: BasePart?,
+	scale: number, -- model scale (legendaries are bigger); lifts scale with it
 	prompt: ProximityPrompt?,
 	dead: boolean,
 	reserved: boolean, -- the bot is delivering to this customer
@@ -59,7 +59,6 @@ local plotRt: { [number]: PlotRuntime } = {}
 local combos: { [Player]: number } = {}
 local nextId = 1
 local random = Random.new()
-local paletteKeys: { string } = {}
 
 local function serverNow(): number
 	return workspace:GetServerTimeNow()
@@ -67,23 +66,6 @@ end
 
 local function rng(): number
 	return random:NextNumber()
-end
-
-local function pick<T>(list: { T }): T?
-	if #list == 0 then
-		return nil
-	end
-	return list[random:NextInteger(1, #list)]
-end
-
-local function nonZero(ids: { number }): { number }
-	local out = {}
-	for _, id in ids do
-		if id ~= 0 then
-			table.insert(out, id)
-		end
-	end
-	return out
 end
 
 local function getFolder(name: string): Folder
@@ -166,65 +148,16 @@ end
 
 -- ── Models ──────────────────────────────────────────────────────────────────
 
-local function colorOf(key: string?): Color3?
-	return if key then Palette.Color[key] else nil
-end
-
-local function buildDescription(kind: Types.CustomerKind, legendaryId: Types.LegendaryId?): HumanoidDescription
-	local desc = Instance.new("HumanoidDescription")
-	local def = if legendaryId then CustomerConfig.Legendary[legendaryId] else nil
-	if kind == "Legendary" and def then
-		local body = colorOf(def.bodyColor)
-		local accent = colorOf(def.accentColor)
-		if body then
-			desc.HeadColor = body
-			desc.LeftArmColor = body
-			desc.RightArmColor = body
-			desc.LeftLegColor = body
-			desc.RightLegColor = body
-		end
-		desc.TorsoColor = accent or body or desc.TorsoColor
-		desc.HeightScale = def.scale
-		desc.WidthScale = def.scale
-		desc.DepthScale = def.scale
-		desc.HeadScale = def.scale
-		return desc
-	end
-	local pools = CustomerConfig.OutfitPools
-	local skin = colorOf(pick(pools.SkinTones))
-	if skin then
-		desc.HeadColor = skin
-		desc.LeftArmColor = skin
-		desc.RightArmColor = skin
-		desc.TorsoColor = skin
-	end
-	local torso = colorOf(pick(paletteKeys))
-	if torso then
-		desc.TorsoColor = torso
-	end
-	local legs = colorOf(pick(paletteKeys))
-	if legs then
-		desc.LeftLegColor = legs
-		desc.RightLegColor = legs
-	end
-	desc.Shirt = pick(nonZero(pools.Shirts)) or 0
-	desc.Pants = pick(nonZero(pools.Pants)) or 0
-	local hat = pick(nonZero(pools.Hats))
-	if hat then
-		desc.HatAccessory = tostring(hat)
-	end
-	return desc
-end
-
 local function createModel(rec: Rec): boolean
 	local data = rec.data
 	local ok, model = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(
-			buildDescription(data.kind, data.legendaryId),
-			Enum.HumanoidRigType.R15
-		)
+		local legendaryId = data.legendaryId
+		if data.kind == "Legendary" and legendaryId then
+			return Looks.BuildLegendary(legendaryId)
+		end
+		return Looks.BuildCustomer(data.kind)
 	end)
-	if not ok or rec.dead then
+	if not ok or not model or rec.dead then
 		if ok and model then
 			model:Destroy()
 		end
@@ -241,20 +174,13 @@ local function createModel(rec: Rec): boolean
 	model:SetAttribute(WorldSchema.Attributes.PlotId, data.plotId)
 	model:SetAttribute(WorldSchema.Attributes.Kind, data.kind)
 	model:SetAttribute(WorldSchema.Attributes.LegendaryId, data.legendaryId)
-	local head = model:FindFirstChild("Head")
-	if head and not head:FindFirstChildOfClass("Decal") then
-		local face = Instance.new("Decal")
-		face.Name = "face"
-		face.Face = Enum.NormalId.Front
-		face.Texture = FACE_TEXTURE
-		face.Parent = head
-	end
+	rec.scale = model:GetScale()
 	humanoid.WalkSpeed = Timings.Customers.WalkSpeed
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 
 	local spawn = plotParts(data.plotId)
 	if spawn then
-		model:PivotTo(spawn.CFrame + SPAWN_LIFT)
+		model:PivotTo(spawn.CFrame + SPAWN_LIFT * rec.scale)
 	end
 	model.Parent = getFolder(WorldSchema.Folders.Customers)
 	pcall(function()
@@ -298,7 +224,7 @@ local function walkTo(rec: Rec, target: Vector3)
 	while not rec.dead and flatDistance(root.Position, target) > Timings.Customers.Walk.ArriveDistance do
 		local t = os.clock() - started
 		if t > timeout then
-			model:PivotTo(CFrame.new(target + SPAWN_LIFT))
+			model:PivotTo(CFrame.new(target + SPAWN_LIFT * rec.scale))
 			return
 		end
 		if t - lastIssued >= Timings.Customers.Walk.ReissueSeconds then
@@ -317,7 +243,7 @@ local function sitAt(rec: Rec, seat: BasePart)
 	local attachment = seat:FindFirstChild(WorldSchema.Parts.SitAttachment)
 	local cf = if attachment and attachment:IsA("Attachment") then attachment.WorldCFrame else seat.CFrame
 	-- Keep only position + facing (-Z of the attachment), then lift the root so the hips rest on the seat top.
-	local pos = cf.Position + Vector3.new(0, Timings.Customers.SitRootLiftStuds, 0)
+	local pos = cf.Position + Vector3.new(0, Timings.Customers.SitRootLiftStuds * rec.scale, 0)
 	local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
 	if look.Magnitude < 1e-3 then
 		look = Vector3.new(0, 0, -1)
@@ -505,7 +431,15 @@ local function makeRoom(plotId: number, seatCount: number): number?
 	return seatIndex
 end
 
-local function spawnCustomer(plotId: number, forcedLegendary: Types.LegendaryId?): number?
+-- Seats one customer of an already-decided kind. Never rolls: the caller decides the kind once per
+-- spawn opportunity. A legendary with no free seat bumps a Regular/Hungry (makeRoom); other kinds
+-- are refused when the seats are full or MaxQueuedPerPlot customers are already walking in.
+local function spawnCustomer(
+	plotId: number,
+	kind: Types.CustomerKind,
+	legendaryId: Types.LegendaryId?,
+	forced: boolean
+): number?
 	local owner = PlotService.GetOwner(plotId)
 	local ownerData = owner and DataService.GetData(owner)
 	local info = PlotService.GetPlotInfo(plotId)
@@ -522,23 +456,16 @@ local function spawnCustomer(plotId: number, forcedLegendary: Types.LegendaryId?
 			break
 		end
 	end
-	local kind: Types.CustomerKind, legendaryId: Types.LegendaryId?
-	if forcedLegendary then
-		kind, legendaryId = "Legendary", forcedLegendary
-	else
-		kind, legendaryId = Orders.rollKind(rng, RushHourService.IsActive())
+	if kind ~= "Legendary" and walkingCount(plotId) >= Timings.Customers.MaxQueuedPerPlot then
+		return nil
 	end
 	if not seatIndex and kind == "Legendary" then
 		seatIndex = makeRoom(plotId, seatCount)
-		if not seatIndex then
+		if not seatIndex and forced then
 			warn("[CustomerService] SpawnLegendary: no seat")
-			return nil
 		end
 	end
 	if not seatIndex then
-		return nil
-	end
-	if not forcedLegendary and kind ~= "Legendary" and walkingCount(plotId) >= Timings.Customers.MaxQueuedPerPlot then
 		return nil
 	end
 
@@ -567,6 +494,7 @@ local function spawnCustomer(plotId: number, forcedLegendary: Types.LegendaryId?
 		model = nil,
 		humanoid = nil,
 		root = nil,
+		scale = 1,
 		prompt = nil,
 		dead = false,
 		reserved = false,
@@ -823,19 +751,17 @@ local function plotTick(plotId: number, t: number)
 	botTick(plotId, runtime, owner, t)
 
 	if t >= runtime.nextSpawnAt and #PlotService.GetMembers(plotId) > 0 then
-		if spawnCustomer(plotId, nil) then
-			-- spawnInterval already includes the Rush Hour multiplier.
-			runtime.nextSpawnAt = t + Orders.spawnInterval(RushHourService.IsActive())
-		end
+		-- One spawn opportunity: schedule the next one first (spawnInterval already includes the Rush Hour
+		-- multiplier), then roll the kind exactly once. A full diner or queue just skips this opportunity;
+		-- it must not re-roll every loop tick, or legendaries (which make room) arrive ~20x too often.
+		local rush = RushHourService.IsActive()
+		runtime.nextSpawnAt = t + Orders.spawnInterval(rush)
+		local kind: Types.CustomerKind, legendaryId: Types.LegendaryId? = Orders.rollKind(rng, rush)
+		spawnCustomer(plotId, kind, legendaryId, false)
 	end
 end
 
 function CustomerService.Init()
-	for key in Palette.Color do
-		table.insert(paletteKeys, key)
-	end
-	table.sort(paletteKeys)
-
 	Events.PlotClaimed:Connect(function(plotId)
 		plotRt[plotId] = {
 			nextSpawnAt = serverNow() + Timings.Customers.FirstCustomerDelaySeconds,
@@ -874,6 +800,14 @@ function CustomerService.Init()
 end
 
 function CustomerService.Start()
+	task.spawn(function()
+		local ok, err = pcall(function()
+			Looks.Prewarm()
+		end)
+		if not ok then
+			warn(`[CustomerService] look prewarm failed: {err}`)
+		end
+	end)
 	task.spawn(function()
 		while true do
 			local t = serverNow()
@@ -918,7 +852,7 @@ function CustomerService.SpawnLegendary(plotId: number, legendaryId: Types.Legen
 	if not CustomerConfig.Legendary[legendaryId] then
 		return nil
 	end
-	return spawnCustomer(plotId, legendaryId)
+	return spawnCustomer(plotId, "Legendary", legendaryId, true)
 end
 
 return CustomerService
