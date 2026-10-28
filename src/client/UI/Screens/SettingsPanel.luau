@@ -1,51 +1,67 @@
 --!strict
--- Settings panel: music and sfx toggles. Owner: agent D.
-local Button = require(script.Parent.Parent.Components.Button)
+-- Settings modal: music and sound-effect switches, each in an icon row. Owner: UI agent.
+local Card = require(script.Parent.Parent.Components.Card)
+local Icons = require(script.Parent.Parent.Icons)
 local Panel = require(script.Parent.Parent.Components.Panel)
 local SettingsController = require(script.Parent.Parent.Parent.Controllers.SettingsController)
 local Theme = require(script.Parent.Parent.Theme)
-local Tween = require(script.Parent.Parent.Tween)
+local Toggle = require(script.Parent.Parent.Components.Toggle)
 local Util = require(script.Parent.Parent.Util)
 
 local SettingsPanel = {}
 
-local ROWS: { { key: SettingsController.Key, title: string } } = {
-	{ key = "music", title = "Music" },
-	{ key = "sfx", title = "Sound effects" },
+local C = Theme.C
+local U = Theme.UI
+local Space = Theme.Space
+local ICON = 34
+
+local ROWS: { { key: SettingsController.Key, title: string, sub: string, icon: string } } = {
+	{ key = "music", title = "Music", sub = "Diner tunes and the Rush Hour beat", icon = "Music" },
+	{ key = "sfx", title = "Sound effects", sub = "Sizzles, dings and coin clinks", icon = "Speaker" },
 }
 
 function SettingsPanel.new(): Panel.Panel
-	local panel = Panel.new("Settings")
-	Util.list(panel.Body, Enum.FillDirection.Vertical, Theme.UI.Gap)
+	local panel = Panel.new("Settings", { icon = "Gear", accent = C.Info })
+	Util.list(panel.Body, Enum.FillDirection.Vertical, Space.SM)
 	local refreshers: { () -> () } = {}
 	for i, row in ROWS do
-		local card = Util.card(panel.Body, Theme.Colors.White, {
-			Size = UDim2.new(1, 0, 0, Theme.UI.SettingRowHeight),
-			LayoutOrder = i,
+		local card = Card.new({
+			parent = panel.Body,
+			variant = "raised",
+			size = UDim2.new(1, 0, 0, U.SettingRowHeight),
+			layoutOrder = i,
 		})
-		Util.label(card, row.title, {
-			Size = UDim2.new(1, -110, 1, 0),
-			Position = UDim2.fromOffset(Theme.UI.Margin, 0),
+		local face = card.face
+		Icons.build(row.icon, face, ICON, {
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, Space.MD, 0.5, 0),
+			ZIndex = 3,
+		})
+		local x = ICON + Space.MD * 2
+		local textW = -(x + U.ToggleWidth + Space.LG * 2)
+		Util.display(face, row.title, {
+			Position = UDim2.new(0, x, 0.5, -20),
+			Size = UDim2.new(1, textW, 0, 22),
+			TextSize = Theme.Type.Title - 2,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			TextSize = Theme.UI.TextLarge,
+			ZIndex = 3,
 		})
-		local toggle: Button.Button
+		local sub = Util.label(face, row.sub, {
+			Position = UDim2.new(0, x, 0.5, 2),
+			Size = UDim2.new(1, textW, 0, 18),
+			TextSize = Theme.Type.Caption + 1,
+			TextColor3 = C.TextMuted,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 3,
+		})
+		Util.fit(sub, Theme.Type.Caption + 1)
+		local toggle = Toggle.new(face, function()
+			SettingsController.Set(row.key, not SettingsController.Get(row.key))
+		end)
+		toggle.instance.ZIndex = 4
 		local function refresh()
-			local on = SettingsController.Get(row.key)
-			toggle:SetText(if on then "ON" else "OFF")
-			toggle:SetColor(if on then Theme.Colors.Mint else Theme.Colors.Ketchup)
+			toggle:Set(SettingsController.Get(row.key))
 		end
-		toggle = Button.new({
-			text = "ON",
-			parent = card,
-			size = UDim2.fromOffset(88, Theme.MinTouchTarget),
-			onActivated = function()
-				SettingsController.Set(row.key, not SettingsController.Get(row.key))
-				Tween.bounce(card)
-			end,
-		})
-		toggle.instance.AnchorPoint = Vector2.new(1, 0.5)
-		toggle.instance.Position = UDim2.new(1, -Theme.UI.Gap, 0.5, 0)
 		SettingsController.Changed:Connect(refresh)
 		table.insert(refreshers, refresh)
 		refresh()

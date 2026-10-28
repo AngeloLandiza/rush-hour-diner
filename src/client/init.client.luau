@@ -1,5 +1,5 @@
 --!strict
--- Client entry. Boots controllers: every Init() in order, then every Start(). Owner: agent D (order),
+-- Client entry. Boots controllers: every Init() in order, then every Start(). Owner: UI agent (order),
 -- orchestrator (boot pattern).
 local Controllers = script.Controllers
 
@@ -13,6 +13,7 @@ local BOOT_ORDER: { { name: string, module: Module } } = {
 	{ name = "ShopController", module = require(Controllers.ShopController) },
 	{ name = "StationController", module = require(Controllers.StationController) },
 	{ name = "CustomerController", module = require(Controllers.CustomerController) },
+	{ name = "PromptController", module = require(Controllers.PromptController) },
 	{ name = "NotifyController", module = require(Controllers.NotifyController) },
 	{ name = "FXController", module = require(Controllers.FXController) },
 	{ name = "TutorialController", module = require(Controllers.TutorialController) },

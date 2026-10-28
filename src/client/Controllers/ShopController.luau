@@ -1,22 +1,34 @@
 --!strict
--- ShopController: owns the shop panel and its toggle. Owner: agent D.
-local Panel = require(script.Parent.Parent.UI.Components.Panel)
+-- ShopController: owns the shop modal, its toggle and deep links into a tab. Owner: UI agent.
 local ShopPanel = require(script.Parent.Parent.UI.Screens.ShopPanel)
 local State = require(script.Parent.Parent.State)
 
 local ShopController = {}
 
-local panel: Panel.Panel? = nil
+local shop: ShopPanel.Shop? = nil
 
-local function get(): Panel.Panel
-	if not panel then
-		panel = ShopPanel.new()
+local function get(): ShopPanel.Shop
+	local s = shop
+	if not s then
+		s = ShopPanel.new()
+		shop = s
 	end
-	return panel :: Panel.Panel
+	return s :: ShopPanel.Shop
 end
 
 function ShopController.Toggle()
-	get():Toggle()
+	get().panel:Toggle()
+end
+
+-- Open the shop on a tab ("Upgrades" | "Passes" | "Products").
+function ShopController.Open(tab: string?)
+	local s = get()
+	if tab then
+		s.SelectTab(tab)
+	end
+	if not s.panel:IsOpen() then
+		s.panel:Open()
+	end
 end
 
 function ShopController.Init() end

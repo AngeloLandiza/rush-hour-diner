@@ -1,27 +1,127 @@
 --!strict
--- UI theme: fonts, sizes, Palette-derived colors, tween presets. Owner: agent D.
--- Every raw UI number lives in Theme.UI; every color comes from Config/Palette.
+-- UI theme: resolves Config/UI tokens into Color3 roles, fonts, TweenInfos and button variants.
+-- Every color is derived from Config/Palette. Spec: docs/UI_STYLE.md. Owner: UI agent.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Palette = require(ReplicatedStorage.Shared.Config.Palette)
 local Types = require(ReplicatedStorage.Shared.Contracts.Types)
+local UIConfig = require(ReplicatedStorage.Shared.Config.UI)
 
-local Colors = Palette.Color
+local P = Palette.Color
+
+export type Variant = {
+	face: Color3,
+	lip: Color3,
+	edge: Color3,
+	text: Color3,
+	textStroke: Color3?,
+}
+export type VariantName =
+	"primary"
+	| "secondary"
+	| "success"
+	| "premium"
+	| "danger"
+	| "accent"
+	| "info"
+	| "disabled"
+	| "ghost"
+
+local function resolve(spec: UIConfig.ColorSpec): Color3
+	local base = P[spec.base] or P.Ink
+	local mix, t = spec.mix, spec.t
+	if mix and t then
+		return base:Lerp(P[mix] or P.Ink, t)
+	end
+	return base
+end
+
+local C: { [string]: Color3 } = {}
+for name, spec in UIConfig.Colors do
+	C[name] = resolve(spec)
+end
+
+local function role(name: string?): Color3?
+	if name then
+		return C[name]
+	end
+	return nil
+end
+
+local Variants: { [string]: Variant } = {}
+for name, spec in UIConfig.Variants do
+	Variants[name] = {
+		face = C[spec.face],
+		lip = C[spec.lip],
+		edge = C[spec.edge],
+		text = C[spec.text],
+		textStroke = role(spec.textStroke),
+	}
+end
+
+local function enumFont(name: string): Enum.Font
+	local ok, item = pcall(function()
+		return (Enum.Font :: any)[name]
+	end)
+	if ok and typeof(item) == "EnumItem" then
+		return item :: any
+	end
+	return Enum.Font.FredokaOne
+end
+
+local function easing(name: string?, fallback: Enum.EasingStyle): Enum.EasingStyle
+	local ok, item = pcall(function()
+		return (Enum.EasingStyle :: any)[name]
+	end)
+	return if ok and typeof(item) == "EnumItem" then item :: any else fallback
+end
+
+local function direction(name: string?): Enum.EasingDirection
+	if name == "In" then
+		return Enum.EasingDirection.In
+	elseif name == "InOut" then
+		return Enum.EasingDirection.InOut
+	end
+	return Enum.EasingDirection.Out
+end
+
+local Motion: { [string]: TweenInfo } = {}
+for name, spec in UIConfig.Motion do
+	Motion[name] = TweenInfo.new(spec.seconds, easing(spec.style, Enum.EasingStyle.Quad), direction(spec.direction))
+end
 
 local Theme = {
-	Font = Enum.Font.FredokaOne,
-	MinTouchTarget = 44, -- px, mobile-first
-	Colors = Colors,
+	Colors = P, -- raw Palette colors (icons and world-tinted art)
 	Hex = Palette.Hex,
+	C = C, -- color roles
+	Variants = Variants,
+	Fonts = {
+		Display = Font.fromEnum(enumFont(UIConfig.Fonts.Display)),
+		Body = Font.fromEnum(enumFont(UIConfig.Fonts.Body)),
+		Heavy = Font.fromEnum(enumFont(UIConfig.Fonts.Heavy)),
+	},
+	DisplayEnum = enumFont(UIConfig.Fonts.Display), -- for TextService measurement
+	Type = UIConfig.Type,
+	Space = UIConfig.Space,
+	Radius = UIConfig.Radius,
+	Stroke = UIConfig.Stroke,
+	Depth = UIConfig.Depth,
+	Motion = Motion,
+	MotionScale = UIConfig.MotionScale,
+	MotionSeconds = UIConfig.Motion,
+	Images = UIConfig.Images,
+	UI = UIConfig.Layout,
+	FX = UIConfig.FX,
+	MinTouchTarget = UIConfig.Layout.MinTouchTarget,
 
-	-- Toast kind -> background color.
-	ToastColor = {
-		Info = Colors.Ink,
-		Success = Colors.Mint,
-		Warning = Colors.Mustard,
-		Error = Colors.Ketchup,
-		Reward = Colors.NeonPink,
-	} :: { [Types.ToastKind]: Color3 },
+	-- Toast kind -> accent role and icon name.
+	ToastKinds = {
+		Info = { color = C.Info, deep = C.InfoDeep, icon = "Info" },
+		Success = { color = C.Success, deep = C.SuccessDeep, icon = "Check" },
+		Warning = { color = C.Primary, deep = C.PrimaryDeep, icon = "Warning" },
+		Error = { color = C.Danger, deep = C.DangerDeep, icon = "Error" },
+		Reward = { color = C.Gold, deep = C.GoldDeep, icon = "Coin" },
+	} :: { [Types.ToastKind]: { color: Color3, deep: Color3, icon: string } },
 
 	-- Keyboard / gamepad equivalents of touch buttons.
 	Keys = {
@@ -33,136 +133,32 @@ local Theme = {
 		Settings = { Enum.KeyCode.O },
 		Daily = { Enum.KeyCode.R },
 	},
-
-	UI = {
-		-- Layout. Design space is 360x640; UIScale grows it on larger viewports.
-		RefWidth = 360,
-		RefHeight = 640,
-		MinScale = 1,
-		MaxScale = 1.6,
-		Margin = 8,
-		Gap = 6,
-		Corner = 12,
-		SmallCorner = 8,
-		Stroke = 3,
-		ThinStroke = 2,
-		GradientShade = 0.18, -- how far the button gradient darkens toward Ink
-		DisabledShade = 0.55,
-
-		-- Text sizes.
-		TextSmall = 14,
-		TextBody = 18,
-		TextLarge = 24,
-		TextHuge = 36,
-
-		-- Z layers.
-		ZHud = 1,
-		ZPanels = 5,
-		ZStation = 6,
-		ZToasts = 10,
-		ZBanner = 12,
-
-		-- Tweens.
-		PopInSeconds = 0.4,
-		PopFromScale = 0.6,
-		PressSeconds = 0.08,
-		ReleaseSeconds = 0.35,
-		PressScale = 0.92,
-		BounceScale = 1.15,
-		BounceSeconds = 0.5,
-		FadeSeconds = 0.25,
-		CoinCountSeconds = 0.6,
-		PulseSeconds = 0.5,
-
-		-- HUD.
-		TopBarHeight = 36,
-		CoinPillWidth = 132,
-		HudColumnWidth = 176,
-		RowHeight = 44,
-		BoostLineHeight = 20,
-		MaxBoostLines = 4,
-		ClockSeconds = 0.25, -- how often slow text (timers) refreshes
-		SnapshotRetrySeconds = 2,
-		MenuButtonWidth = 46,
-		CollectButtonWidth = 76,
-
-		-- Panels.
-		PanelMaxWidth = 420,
-		PanelMaxHeight = 520,
-		PanelTopInset = 96,
-		PanelBottomInset = 16,
-		TitleBarHeight = 48,
-		TabHeight = 44,
-		ListRowHeight = 64,
-		LeaderboardRows = 10,
-		ShopHintSeconds = 2.5,
-
-		-- Toasts / banner.
-		ToastSeconds = 3,
-		ToastMax = 4,
-		ToastHeight = 40,
-		BannerSeconds = 4.5,
-		BannerHeight = 96,
-		BannerYScale = 0.3,
-
-		-- Station panel.
-		StationPanelHeight = 214,
-		StationPanelMaxWidth = 380,
-		StationBigButtonHeight = 72,
-		StationBarHeight = 22,
-		StationCloseDistanceFactor = 1, -- close panel past InteractRange * this (server rejects beyond 1x)
-		StationCheckSeconds = 0.25,
-		FlipMarkerWidth = 6,
-
-		-- Customer bubbles.
-		BubbleWidth = 96,
-		BubbleHeight = 84,
-		BubbleOffsetY = 3,
-		BubbleMaxDistance = 90,
-		BubbleBarHeight = 10,
-		BubbleLowPatience = 0.25,
-		BubbleMidPatience = 0.55,
-		LegendaryShimmerSeconds = 2,
-
-		-- Tutorial.
-		TutorialBeamWidth = 0.5,
-		TutorialArrowSize = 64,
-		TutorialArrowBobStuds = 1.2,
-		TutorialArrowHeight = 7,
-		TutorialTextHeight = 52,
-
-		-- Settings.
-		SettingRowHeight = 52,
-		CrewNameBoxWidth = 190,
-		PopupWidth = 220,
-		PopupHeight = 60,
-		PopupSeconds = 1.4,
-	},
-
-	FX = {
-		FloatTextRiseStuds = 5,
-		FloatTextSeconds = 1.4,
-		FloatTextOffsetY = 5,
-		FloatTextWidth = 140,
-		FloatTextHeight = 50,
-		CoinBurstBaseScale = 1,
-		CoinBurstPerCoin = 0.01,
-		CoinBurstMaxScale = 3,
-		TipBaseScale = 0.8,
-		TipPerFraction = 1.5,
-		TipMaxScale = 5,
-		LegendaryBurstScale = 2.5,
-	},
 }
 
--- Darkens a palette color toward Ink (for gradients, disabled states).
+-- Darkens a color toward Ink.
 function Theme.shade(color: Color3, amount: number): Color3
-	return color:Lerp(Colors.Ink, amount)
+	return color:Lerp(P.Ink, amount)
 end
 
--- Lightens a palette color toward White.
+-- Lightens a color toward White.
 function Theme.tint(color: Color3, amount: number): Color3
-	return color:Lerp(Colors.White, amount)
+	return color:Lerp(P.White, amount)
+end
+
+-- Patience ring color: green (full) -> yellow -> red (empty), blended continuously.
+function Theme.patienceColor(remaining: number): Color3
+	local mid = UIConfig.Layout.BubbleMidPatience
+	local low = UIConfig.Layout.BubbleLowPatience
+	if remaining >= mid then
+		return C.PatienceMid:Lerp(C.PatienceHigh, math.clamp((remaining - mid) / (1 - mid), 0, 1))
+	elseif remaining >= low then
+		return C.PatienceLow:Lerp(C.PatienceMid, (remaining - low) / (mid - low))
+	end
+	return C.PatienceLow
+end
+
+function Theme.variant(name: VariantName): Variant
+	return Variants[name] or Variants.primary
 end
 
 return Theme

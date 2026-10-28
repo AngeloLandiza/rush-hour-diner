@@ -1,9 +1,11 @@
 --!strict
--- Text label that counts down to a server timestamp. Owner: agent D.
+-- Text label that counts down to a server timestamp. Optional onUrgent fires once when the remaining
+-- time crosses urgentSeconds (for pulses / color shifts). Owner: UI agent.
 export type Countdown = {
 	Label: TextLabel,
 	SetTarget: (self: Countdown, target: number?) -> (),
 	Step: (self: Countdown, now: number) -> (),
+	Remaining: (self: Countdown, now: number) -> number?,
 	_target: number?,
 	_format: (seconds: number) -> string,
 }
@@ -19,10 +21,17 @@ function Countdown.new(label: TextLabel, format: (number) -> string): Countdown
 		SetTarget = function(self: Countdown, target: number?)
 			self._target = target
 		end,
+		Remaining = function(self: Countdown, now: number): number?
+			local t = self._target
+			return if t then math.max(0, t - now) else nil
+		end,
 		Step = function(self: Countdown, now: number)
 			local t = self._target
 			if t then
-				self.Label.Text = self._format(math.max(0, t - now))
+				local text = self._format(math.max(0, t - now))
+				if self.Label.Text ~= text then
+					self.Label.Text = text
+				end
 			end
 		end,
 	}
