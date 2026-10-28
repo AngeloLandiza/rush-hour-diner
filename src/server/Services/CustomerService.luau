@@ -5,6 +5,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local CustomerConfig = require(ReplicatedStorage.Shared.Config.Customers)
@@ -33,6 +34,9 @@ local StationService = require(script.Parent.StationService)
 local SPAWN_LIFT = Vector3.new(0, Timings.Customers.SpawnLiftStuds, 0)
 local BOT_LIFT = Vector3.new(0, Timings.AutoServer.LiftStuds, 0)
 local MAX_CUSTOMER_ID = 2 ^ 31
+-- TODO(contract): Timings.Customers.SitRootLiftStuds (HumanoidRootPart centre above the seat top when seated)
+local FACE_TEXTURE = "rbxasset://textures/face.png" -- built-in engine content
+local sitTracks: { [Rec]: AnimationTrack } = {}
 
 type Rec = {
 	data: Types.Customer,
@@ -237,6 +241,14 @@ local function createModel(rec: Rec): boolean
 	model:SetAttribute(WorldSchema.Attributes.PlotId, data.plotId)
 	model:SetAttribute(WorldSchema.Attributes.Kind, data.kind)
 	model:SetAttribute(WorldSchema.Attributes.LegendaryId, data.legendaryId)
+	local head = model:FindFirstChild("Head")
+	if head and not head:FindFirstChildOfClass("Decal") then
+		local face = Instance.new("Decal")
+		face.Name = "face"
+		face.Face = Enum.NormalId.Front
+		face.Texture = FACE_TEXTURE
+		face.Parent = head
+	end
 	humanoid.WalkSpeed = Timings.Customers.WalkSpeed
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 
@@ -304,12 +316,41 @@ local function sitAt(rec: Rec, seat: BasePart)
 	end
 	local attachment = seat:FindFirstChild(WorldSchema.Parts.SitAttachment)
 	local cf = if attachment and attachment:IsA("Attachment") then attachment.WorldCFrame else seat.CFrame
-	model:PivotTo(cf * CFrame.new(0, humanoid.HipHeight, 0))
-	humanoid.Sit = true
+	-- Keep only position + facing (-Z of the attachment), then lift the root so the hips rest on the seat top.
+	local pos = cf.Position + Vector3.new(0, Timings.Customers.SitRootLiftStuds, 0)
+	local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+	if look.Magnitude < 1e-3 then
+		look = Vector3.new(0, 0, -1)
+	end
+	model:PivotTo(CFrame.lookAt(pos, pos + look.Unit))
 	root.Anchored = true
+	local played = false
+	pcall(function()
+		local animate = model:FindFirstChild("Animate")
+		local sitValue = animate and animate:FindFirstChild("sit")
+		local anim = sitValue and sitValue:FindFirstChildOfClass("Animation")
+		local animator = humanoid:FindFirstChildOfClass("Animator")
+		if anim and animator then
+			local track = animator:LoadAnimation(anim)
+			track.Looped = true
+			track:Play()
+			sitTracks[rec] = track
+			played = true
+		end
+	end)
+	if not played then
+		humanoid.Sit = true
+	end
 end
 
 local function standUp(rec: Rec)
+	local track = sitTracks[rec]
+	if track then
+		sitTracks[rec] = nil
+		pcall(function()
+			track:Stop()
+		end)
+	end
 	if rec.root then
 		rec.root.Anchored = false
 	end
@@ -770,6 +811,28 @@ function CustomerService.Init()
 		combos[player] = nil
 	end)
 	Guard.onEvent("ServeCustomer", handleServe)
+
+	if RunService:IsStudio() then
+		-- Studio command bar: workspace:SetAttribute("DebugLegendary", "<key of Config/Customers.Legendary>")
+		workspace:GetAttributeChangedSignal("DebugLegendary"):Connect(function()
+			local key = workspace:GetAttribute("DebugLegendary")
+			if type(key) ~= "string" or key == "" then
+				return
+			end
+			workspace:SetAttribute("DebugLegendary", "")
+			if CustomerConfig.Legendary[key] == nil then
+				warn(`[CustomerService] DebugLegendary: unknown legendary '{key}'`)
+				return
+			end
+			for plotId = 1, Timings.Plots.Count do
+				if PlotService.GetOwner(plotId) then
+					CustomerService.SpawnLegendary(plotId, key)
+					return
+				end
+			end
+			warn("[CustomerService] DebugLegendary: no owned plot")
+		end)
+	end
 end
 
 function CustomerService.Start()

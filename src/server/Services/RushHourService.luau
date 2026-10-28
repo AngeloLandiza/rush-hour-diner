@@ -2,6 +2,7 @@
 -- Hourly Rush Hour scheduler (+ purchased "Rush Hour Now"). Owner: agent C.
 -- Fires Events.RushHourStarted/Ended and broadcasts RushHourState.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Events = require(ReplicatedStorage.Shared.Contracts.Events)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -54,7 +55,17 @@ local function poll()
 	end
 end
 
-function RushHourService.Init() end
+function RushHourService.Init()
+	if RunService:IsStudio() then
+		-- Studio command bar: workspace:SetAttribute("DebugRushNow", true)
+		workspace:GetAttributeChangedSignal("DebugRushNow"):Connect(function()
+			if workspace:GetAttribute("DebugRushNow") == true then
+				RushHourService.TriggerNow(nil)
+				workspace:SetAttribute("DebugRushNow", false)
+			end
+		end)
+	end
+end
 
 function RushHourService.Start()
 	task.spawn(function()

@@ -23,6 +23,7 @@ local Timings = {
 		LoopSeconds = 0.5, -- central spawn / bot loop period
 		WaitPollSeconds = 0.25, -- patience check period for a seated customer
 		SpawnLiftStuds = 3,
+		SitRootLiftStuds = 1.2, -- root height above the seat's Sit attachment while seated
 		Walk = {
 			ArriveDistance = 4, -- horizontal studs that count as "reached"
 			TimeoutFactor = 1.5, -- allowed time = straight-line time × this

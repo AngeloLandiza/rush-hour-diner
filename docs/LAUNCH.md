@@ -154,7 +154,7 @@ Optional: an opt-in video ad for a temporary tip boost. Ads are never required.
 - **Camera:** Wide, eye level, centered on the diner front.
 - **In-game moment:** The Rush Hour start, after the lighting tween and while the countdown is showing.
 - **Text overlay:** `RUSH HOUR NOW` (3 words)
-- **Capture in Studio:** In Play mode, switch to the Server view and run `require(game.ServerScriptService.Server.Services.RushHourService).TriggerNow()` in the Command Bar. No code changes are needed. Wait for the lighting tween to finish, then capture at 1920 x 1080 with the HUD visible.
+- **Capture in Studio:** In Play mode, switch to the Server view and run `workspace:SetAttribute("DebugRushNow", true)` in the Command Bar. This is a Studio-only hook. Use `workspace:SetAttribute("DebugLegendary", "GiantChef")` to spawn a legendary customer. Wait for the lighting tween to finish, then capture at 1920 x 1080 with the HUD visible.
 
 ### T4: Cook with friends
 
