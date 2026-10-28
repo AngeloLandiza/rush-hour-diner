@@ -347,8 +347,8 @@ local LOOKS: LooksDef = {
 	-- Chance a non-legendary customer gets one random accessory from Accessories.
 	AccessoryChance = 0.7,
 	ShortSleeveChance = 0.5,
-	-- Light to deep. TODO(palette): swap for dedicated Skin* keys once the World agent adds them.
-	SkinTones = { "CreamShade", "Peach", "BunLight", "WoodLight", "Wood", "TerracottaDeep", "WoodDark", "Patty" },
+	-- Light to deep.
+	SkinTones = { "SkinPorcelain", "SkinLight", "SkinTan", "SkinMedium", "SkinBrown", "SkinDeep" },
 	HairColors = { "Charcoal", "WoodDark", "Patty", "MustardDeep", "TerracottaDeep", "Ink", "KetchupDeep" },
 	Outfits = OUTFITS,
 	Accessories = ACCESSORIES,

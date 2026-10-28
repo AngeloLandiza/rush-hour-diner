@@ -9,7 +9,6 @@ local Cooking = require(ReplicatedStorage.Shared.Logic.Cooking)
 local Events = require(ReplicatedStorage.Shared.Contracts.Events)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Offline = require(ReplicatedStorage.Shared.Logic.Offline)
-local Presets = require(ReplicatedStorage.Shared.VFX.Presets)
 local Stations = require(ReplicatedStorage.Shared.Config.Stations)
 local Timings = require(ReplicatedStorage.Shared.Config.Timings)
 local Types = require(ReplicatedStorage.Shared.Contracts.Types)
@@ -26,7 +25,6 @@ local PurchaseService = require(script.Parent.PurchaseService)
 local HAND_OFFSET =
 	CFrame.new(Timings.Station.HeldDishOffset.X, Timings.Station.HeldDishOffset.Y, Timings.Station.HeldDishOffset.Z)
 
-type FxName = Presets.PresetName
 type Held = { item: Types.HeldItem, prop: Model? }
 type SlotRuntime =
 	{ state: Types.StationState, interact: BasePart?, fxAttachment: Attachment?, prompt: ProximityPrompt? }
@@ -36,7 +34,6 @@ local VALID_ACTIONS: { [string]: boolean } = { Start = true, Flip = true, Collec
 local StationService = {}
 
 local slots: { [number]: { [number]: SlotRuntime } } = {}
-local emitters: { [Attachment]: { [string]: ParticleEmitter } } = {}
 local held: { [Player]: Held } = {}
 local playerConns: { [Player]: { RBXScriptConnection } } = {}
 local now = workspace.GetServerTimeNow
@@ -66,32 +63,6 @@ local function freshState(plotId: number, slot: number): Types.StationState
 	}
 end
 
-local function setFx(rt: SlotRuntime, wanted: { [string]: boolean })
-	local attachment = rt.fxAttachment
-	if not attachment then
-		return
-	end
-	local list = emitters[attachment]
-	if not list then
-		list = {}
-		emitters[attachment] = list
-	end
-	for name, on in wanted do
-		local emitter = list[name]
-		if not emitter and on then
-			emitter = Presets.Create(name :: FxName, attachment)
-			list[name] = emitter
-		end
-		if emitter then
-			emitter.Enabled = on
-		end
-	end
-end
-
-local function fxOff(rt: SlotRuntime)
-	setFx(rt, { Sizzle = false, Steam = false, Fire = false })
-end
-
 local function sfxParent(rt: SlotRuntime): Instance?
 	return rt.fxAttachment or rt.interact
 end
@@ -119,7 +90,8 @@ local function publishState(state: Types.StationState)
 	end
 end
 
--- Commits a new state, running side effects for phase changes and notifying the plot.
+-- Commits a new state, running side effects (SFX, attributes) for phase changes and notifying the plot.
+-- Station VFX are driven by World/StationVisuals from the Phase/Quality attributes, not here.
 local function commit(rt: SlotRuntime, new: Types.StationState)
 	local old = rt.state
 	rt.state = new
@@ -132,20 +104,14 @@ local function commit(rt: SlotRuntime, new: Types.StationState)
 	if old.phase ~= new.phase then
 		local parent = sfxParent(rt)
 		if new.phase == "Cooking" then
-			setFx(rt, { Sizzle = true, Steam = true, Fire = false })
 			AudioDirector.PlaySfx("Sizzle", parent)
 		elseif new.phase == "Finishing" then
-			setFx(rt, { Sizzle = true, Steam = true, Fire = false })
 			AudioDirector.PlaySfx("Flip", parent)
 		elseif new.phase == "Ready" then
-			setFx(rt, { Sizzle = false, Steam = true, Fire = false })
 			AudioDirector.PlaySfx("Ding", parent)
 		elseif new.phase == "Burnt" then
-			setFx(rt, { Sizzle = false, Steam = false, Fire = true })
 			AudioDirector.PlaySfx("Burnt", parent)
 			Events.StationBurnt:Fire(new.plotId, new.slot)
-		elseif new.phase == "Idle" then
-			fxOff(rt)
 		end
 	end
 	sendTo(new.plotId, new)
@@ -255,7 +221,6 @@ end
 
 local function resetPlot(plotId: number)
 	for slot, rt in slots[plotId] do
-		fxOff(rt)
 		rt.state = freshState(plotId, slot)
 		publishState(rt.state)
 	end
