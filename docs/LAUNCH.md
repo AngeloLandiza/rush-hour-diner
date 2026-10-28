@@ -27,7 +27,7 @@ Create each item in the Creator Hub (open the experience, then Monetization: Pas
 | `Products.CoinsSmall` | Pile of Coins | 500 coins to spend on your diner. | 25 |
 | `Products.CoinsMedium` | Bag of Coins | 2,500 coins to spend on your diner. | 99 |
 | `Products.CoinsLarge` | Vault of Coins | 11,000 coins to spend on your diner. | 399 |
-| `Products.AdTipBoost` | Ad Tip Boost | +25% tips for 10 minutes. | 0 |
+| `Products.AdTipBoost` | Ad Tip Boost | +25% tips for 10 minutes. (rewarded-ad reward, never sold in the shop) | 1 |
 
 **Notes**
 

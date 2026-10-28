@@ -73,12 +73,13 @@ local Products = {
 			priceRobux = 399,
 			coins = 11000,
 		},
-		-- Free product used as the reward for an opt-in rewarded video ad.
+		-- Reward for an opt-in rewarded video ad. Only ever granted through AdService (never listed in the
+		-- shop); Roblox requires a price above 0, so it is set to the minimum.
 		AdTipBoost = {
-			id = 0,
+			id = 3723283881,
 			displayName = "Ad Tip Boost",
 			description = "+25% tips for 10 minutes.",
-			priceRobux = 0,
+			priceRobux = 1,
 			boost = "AdTipBoost",
 			boostSeconds = 10 * 60,
 		},

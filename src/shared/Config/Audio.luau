@@ -7,13 +7,13 @@ local Audio = {
 		Rush = { id = 0, volume = 0.5 },
 	},
 	Sfx = {
-		Sizzle = { id = 0, volume = 0.6 },
-		Ding = { id = 0, volume = 0.7 },
-		Cash = { id = 0, volume = 0.7 },
-		RushHorn = { id = 0, volume = 0.9 },
-		Flip = { id = 0, volume = 0.5 },
-		Burnt = { id = 0, volume = 0.6 },
-		Legendary = { id = 0, volume = 0.9 },
+		Sizzle = { id = 77033876696234, volume = 0.6 },
+		Ding = { id = 98239276555458, volume = 0.7 },
+		Cash = { id = 115761658172491, volume = 0.7 },
+		RushHorn = { id = 98189623169670, volume = 0.9 },
+		Flip = { id = 95699006307986, volume = 0.5 },
+		Burnt = { id = 103859651755876, volume = 0.6 },
+		Legendary = { id = 135754583156511, volume = 0.9 },
 	},
 }
 
