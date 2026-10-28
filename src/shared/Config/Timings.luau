@@ -10,7 +10,7 @@ local Timings = {
 
 	Seats = {
 		Base = 2,
-		Max = 6, -- Base + Seating upgrade levels (+ VIP booth seat)
+		Max = 6, -- Base + Seating upgrade levels (VIP booth is cosmetic and adds no seat)
 	},
 
 	Customers = {

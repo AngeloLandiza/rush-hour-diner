@@ -2,10 +2,48 @@
 -- Thin wrapper over Roblox AnalyticsService (funnels, economy, custom events). Owner: orchestrator.
 -- Never throws: analytics failures must not break gameplay.
 local RobloxAnalytics = game:GetService("AnalyticsService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Events = require(ReplicatedStorage.Shared.Contracts.Events)
 
 local AnalyticsService = {}
 
-function AnalyticsService.Init() end
+-- Onboarding funnel steps, logged once per player session in order.
+local ONBOARDING_STEPS = { "PlotClaimed", "FirstDishCooked", "FirstOrderServed", "TutorialCompleted", "FirstUpgrade" }
+local onboardingStep: { [Player]: number } = {}
+
+local function advanceOnboarding(player: Player, stepName: string)
+	local nextStep = (onboardingStep[player] or 0) + 1
+	if ONBOARDING_STEPS[nextStep] ~= stepName then
+		return
+	end
+	onboardingStep[player] = nextStep
+	AnalyticsService.LogOnboarding(player, nextStep, stepName)
+end
+
+function AnalyticsService.Init()
+	Events.PlotClaimed:Connect(function(_plotId, owner)
+		advanceOnboarding(owner, "PlotClaimed")
+	end)
+	Events.DishCooked:Connect(function(player)
+		advanceOnboarding(player, "FirstDishCooked")
+	end)
+	Events.OrderServed:Connect(function(result)
+		if not result.byBot then
+			advanceOnboarding(result.player, "FirstOrderServed")
+		end
+	end)
+	Events.TutorialCompleted:Connect(function(player)
+		advanceOnboarding(player, "TutorialCompleted")
+	end)
+	Events.UpgradePurchased:Connect(function(player)
+		advanceOnboarding(player, "FirstUpgrade")
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		onboardingStep[player] = nil
+	end)
+end
 
 function AnalyticsService.Start() end
 

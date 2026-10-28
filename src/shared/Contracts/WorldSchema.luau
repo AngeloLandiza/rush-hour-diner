@@ -68,6 +68,10 @@ local WorldSchema = {
 		Music = "Music",
 		Sfx = "Sfx",
 	},
+	-- ProximityPrompt conventions (server creates prompts; client listens via ProximityPromptService):
+	--   Station "Cook":  KeyboardKeyCode E, GamepadKeyCode ButtonX, Exclusivity OnePerButton
+	--   Customer "Serve": KeyboardKeyCode F, GamepadKeyCode ButtonY, Exclusivity AlwaysShow
+	--   Hidden slots/seats must set prompt.Enabled = false.
 	-- CollectionService tags
 	Tags = {
 		StationInteract = "StationInteract", -- Interact parts

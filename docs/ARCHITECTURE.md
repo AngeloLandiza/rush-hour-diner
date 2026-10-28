@@ -36,8 +36,8 @@ Server (`src/server/init.server.luau`): `Net.setupServer()`, then `Init()` of ea
 3. RushHourService
 4. PurchaseService
 5. LeaderboardService
-6. MapBuilder (builds the world in `Init`, so later services can find plots in their `Init`)
-7. PropBuilder
+6. PropBuilder
+7. MapBuilder (builds the world in `Init` using PropBuilder, so later services can find plots in their `Init`)
 8. LightingDirector
 9. AudioDirector
 10. PlotService
@@ -46,7 +46,7 @@ Server (`src/server/init.server.luau`): `Net.setupServer()`, then `Init()` of ea
 
 The `GetSnapshot` RemoteFunction is glue in `init.server.luau` (composed from public APIs).
 
-Client (`src/client/init.client.luau`): InputController, HUDController, ShopController, StationController, FXController. Client state comes from `GetSnapshot` once, then incremental server→client events.
+Client (`src/client/init.client.luau`): State, InputController, SettingsController, HUDController, ShopController, StationController, CustomerController, NotifyController, FXController, TutorialController. Every `Start` waits for `State.waitReady()`. Client state comes from `GetSnapshot` once, then incremental server→client events.
 
 ## 4. Public functions per module
 
