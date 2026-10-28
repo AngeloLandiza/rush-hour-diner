@@ -1,0 +1,61 @@
+{
+	"name": "rush-hour-diner",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"Shared": {
+				"$path": "src/shared"
+			},
+			"Packages": {
+				"$path": "Packages"
+			}
+		},
+		"ServerStorage": {
+			"Vendor": {
+				"$path": "vendor"
+			}
+		},
+		"ServerScriptService": {
+			"Server": {
+				"$path": "src/server"
+			}
+		},
+		"StarterPlayer": {
+			"$properties": {
+				"GameSettingsAvatar": "R15",
+				"CharacterWalkSpeed": 18,
+				"CharacterJumpPower": 50
+			},
+			"StarterPlayerScripts": {
+				"Client": {
+					"$path": "src/client"
+				}
+			}
+		},
+		"Lighting": {
+			"$properties": {
+				"Technology": "Future"
+			}
+		},
+		"Players": {
+			"$properties": {
+				"CharacterAutoLoads": true
+			}
+		},
+		"SoundService": {
+			"$properties": {
+				"RespectFilteringEnabled": true
+			}
+		},
+		"TextChatService": {
+			"$properties": {
+				"ChatVersion": "TextChatService"
+			}
+		},
+		"Workspace": {
+			"$properties": {
+				"FilteringEnabled": true
+			}
+		}
+	}
+}

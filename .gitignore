@@ -1,0 +1,20 @@
+# Generated
+Packages/
+sourcemap.json
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+roblox.yml
+.cache/
+
+# Secrets — never commit
+.env
+*.key
+api_key*
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json

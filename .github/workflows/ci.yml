@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rokit and tools
+        uses: CompeyDev/setup-rokit@1d9390883f7ebce19d48f5b8d006e11d387c92ab # v0.2.1
+        with:
+          version: v1.2.0
+          cache: "true"
+
+      - name: Cache luau-lsp definitions
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: luau-defs-${{ hashFiles('tools/check.sh') }}
+
+      - name: Lint, typecheck, test, build
+        run: ./tools/check.sh
+
+      - name: Upload place file
+        uses: actions/upload-artifact@v4
+        with:
+          name: place
+          path: place.rbxl
+          retention-days: 7
